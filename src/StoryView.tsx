@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
+import { useState, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
 import {
     StyleSheet,
     Text,
@@ -6,39 +6,83 @@ import {
     Dimensions,
     TouchableWithoutFeedback,
     Image,
-    Modal,
     Animated,
     StatusBar,
-    Button,
-    TouchableOpacity,
-    BackHandler,
     Pressable,
+    SafeAreaView,
 } from 'react-native';
+import Mute from './assets/Mute';
+import Unmute from './assets/Unmute';
+import Close from './assets/Close';
+import Open from './assets/Open';
 import { ResizeMode, Video } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { Data, Story } from './types';
+import { timeSince } from './helpers/timesince';
+import type { ImageStyle } from 'react-native';
+import type { TextStyle } from 'react-native';
+import { Linking } from 'react-native';
+import type { ViewStyle } from 'react-native';
 const { width, height } = Dimensions.get('window');
-const screenRatio = height / width;
 
 type StoryType = Story & {
     finish: number
 };
 type PropTypes = {
-    data: Data[],
+    stories: Data[],
+    setStories: Dispatch<SetStateAction<Data[]>>,
     currentStoryIndex: number,
     setCurrentStoryIndex: Dispatch<SetStateAction<number | null>>,
-    setStoriesViewed: Dispatch<SetStateAction<{ id: number, viewed: boolean }[]>>
-    storiesViewed: { id: number, viewed: boolean }[]
+    imageStoryDuration?: number,
+    videoVolume?: number,
+    isAnimationBarRounded?: boolean,
+    animationBarHeight?: number,
+    animationBarColor?: string,
+    headerGradientTransparency?: number,
+    iconSize?: number,
+    iconColor?: string,
+    storyViewProfileImageStyles?: ImageStyle,
+    storyViewProfileNameStyles?: TextStyle,
+    seeMoreLink?: string,
+    seeMoreText?: string,
+    seeMoreContainerStyles?: ViewStyle,
+    seeMoreStyles?: ViewStyle,
+    seeMoreTextStyles?: TextStyle,
+    seeMoreIconSize?: number,
+    seeMoreIconColor?: string,
 }
-export default function App({ data, currentStoryIndex, setCurrentStoryIndex, setStoriesViewed, storiesViewed }: PropTypes) {
+export default function App({
+    stories,
+    setStories,
+    currentStoryIndex,
+    setCurrentStoryIndex,
+    imageStoryDuration,
+    videoVolume = 1.0,
+    isAnimationBarRounded = true,
+    animationBarHeight = 2,
+    animationBarColor = "#fff",
+    headerGradientTransparency = 0.75,
+    iconSize = 24,
+    iconColor = "#fff",
+    storyViewProfileImageStyles,
+    storyViewProfileNameStyles,
+    seeMoreText = "View Details",
+    seeMoreContainerStyles,
+    seeMoreStyles,
+    seeMoreTextStyles,
+    seeMoreIconSize = 18,
+    seeMoreIconColor = "#fff"
+
+}: PropTypes) {
+    //to hold the stories and add a proeprty finish to keep track of finished stories for animation
     const [content, setContent] = useState<StoryType[]>([]);
     //to control pause and play on long press
     const [shouldPlay, setShouldPlay] = useState(true);
     //to control mute press
     const [isMuted, setIsMuted] = useState(false);
     //to check from which position to resume
-    const [postition, setPosition] = useState(0);
-    // for get the duration
+    const [position, setPosition] = useState(0);
+    //to get the duration
     const [end, setEnd] = useState(0);
     // current is for get the current content is now playing
     const [current, setCurrent] = useState(0);
@@ -48,18 +92,19 @@ export default function App({ data, currentStoryIndex, setCurrentStoryIndex, set
     const progress = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        const _temp: StoryType[] = [];
-        data[currentStoryIndex]?.stories.forEach(deal => {
-            _temp.push({ ...deal, finish: 0 })
-        })
-        setContent(_temp);
-        console.log('here')
+        if (currentStoryIndex !== null) {
+            const _temp: StoryType[] = [];
+            stories[currentStoryIndex]?.stories.forEach(deal => {
+                _temp.push({ ...deal, finish: 0 })
+            })
+            setContent(_temp);
+        }
     }, [currentStoryIndex]);
 
     // start() is for starting the animation bars at the top
     const start = (n: number) => {
         // checking if the content type is video or not
-        if (data[currentStoryIndex]?.stories[current]?.mediaType == 'video') {
+        if (stories[currentStoryIndex]?.stories[current]?.mediaType == 'video') {
             // type video
             if (load) {
                 Animated.timing(progress, {
@@ -76,7 +121,7 @@ export default function App({ data, currentStoryIndex, setCurrentStoryIndex, set
             // type image
             Animated.timing(progress, {
                 toValue: 1,
-                duration: 5000,
+                duration: imageStoryDuration ? imageStoryDuration : 3000,
                 useNativeDriver: false
             }).start(({ finished }) => {
                 if (finished && currentStoryIndex !== null) {
@@ -90,21 +135,33 @@ export default function App({ data, currentStoryIndex, setCurrentStoryIndex, set
     const play = () => {
         start(end);
     }
-
+    //handle story seen on all individual stories viewed
+    const storySeen = () => {
+        // Find the index of the object you want to update
+        const index = stories.findIndex(obj => obj.id === stories[currentStoryIndex]?.id);
+        // Create a copy of the original array
+        const updatedArray = [...stories];
+        // Updating viewed to true
+        const updatedObject: Data = { ...updatedArray[index], viewed: true };
+        // Replace the old object with the updated copy
+        updatedArray[index] = updatedObject;
+        // Set the updated array as the new state or use it in your component
+        setStories(updatedArray);
+    }
     // next() is for changing the content of the current content to +1
     const next = () => {
         setPosition(0);
         // check if the next content is not empty
         if (current !== content.length - 1) {
-            let data = [...content];
-            data[current].finish = 1;
-            setContent(data);
+            let _temp = [...content];
+            _temp[current].finish = 1;
+            setContent(_temp);
             setCurrent(current + 1);
             progress.setValue(0);
             setLoad(false);
         } else {
             // the next content is empty and there are other stories remaining
-            if (currentStoryIndex < data.length - 1) {
+            if (currentStoryIndex < stories.length - 1) {
                 setCurrentStoryIndex(currentStoryIndex + 1);
                 setCurrent(0);
                 progress.setValue(0);
@@ -113,16 +170,7 @@ export default function App({ data, currentStoryIndex, setCurrentStoryIndex, set
             else {
                 close();
             }
-            // if (current === data[currentStoryIndex]?.stories.length - 1) {
-            const viewiedStories = [...storiesViewed]
-            const updatedViewedStories = viewiedStories.map(viewedStory => {
-                if (viewedStory.id === data[currentStoryIndex]?.id) {
-                    return { ...viewedStory, viewed: true }; // Creating a new object with the updated value
-                }
-                return viewedStory;
-            });
-            setStoriesViewed(updatedViewedStories)
-            // }
+            storySeen()
         }
     }
 
@@ -131,9 +179,9 @@ export default function App({ data, currentStoryIndex, setCurrentStoryIndex, set
         // checking if the previous content is not empty
         if (current - 1 >= 0) {
             setPosition(0);
-            let _data = [...content];
-            _data[current].finish = 0;
-            setContent(_data);
+            let _temp = [...content];
+            _temp[current].finish = 0;
+            setContent(_temp);
             setCurrent(current - 1);
             progress.setValue(0);
             setLoad(false);
@@ -164,6 +212,9 @@ export default function App({ data, currentStoryIndex, setCurrentStoryIndex, set
     }
     // closing the modal set the animation progress to 0
     const close = () => {
+        if (current === content.length - 1) {
+            storySeen()
+        }
         setCurrentStoryIndex(null);
         setPosition(0);
         progress.setValue(0);
@@ -174,32 +225,25 @@ export default function App({ data, currentStoryIndex, setCurrentStoryIndex, set
     }
 
     return (
-        <View style={styles.containerModal}>
+        <SafeAreaView style={styles.containerModal}>
+            <StatusBar barStyle='default' />
             <View style={styles.backgroundContainer}>
                 {/* check the content type is video or an image */}
                 {content[current]?.mediaType == 'video' ? (
                     <Video
                         source={{
-                            uri: content[current]?.media || "",
+                            uri: content[current]?.media,
                         }}
                         rate={1.0}
-                        volume={1.0}
+                        volume={videoVolume}
                         resizeMode={ResizeMode.COVER}
-                        shouldPlay={true}
-                        positionMillis={0}
-                        // I WAS THINKING TO GET THE VIDEO THUMBNAIL BEFORE THE VIDEO LOADS UP
-                        // posterSource={{
-                        // 	uri: content[current].thumbnail,
-                        // }}
-                        // posterStyle={{
-                        // 	width: width,
-                        // 	height: height,
-                        // }}
-                        // usePoster
+                        shouldPlay={shouldPlay}
+                        isMuted={isMuted}
+                        positionMillis={Number.isNaN(position) ? 0 : position}
                         onReadyForDisplay={play}
                         onPlaybackStatusUpdate={(AVPlaybackStatus) => {
-                            // console.log(AVPlaybackStatus);
                             setLoad(AVPlaybackStatus.isLoaded);
+                            //@ts-ignore
                             setEnd(AVPlaybackStatus.durationMillis);
                         }}
                         style={{ height: height, width: width }}
@@ -217,123 +261,92 @@ export default function App({ data, currentStoryIndex, setCurrentStoryIndex, set
                     />
                 )}
             </View>
-            <View
-                style={{
-                    flexDirection: 'column',
-                    flex: 1,
-                }}
-            >
+
+            <View style={{
+                flexDirection: 'column',
+                flex: 1,
+            }}>
                 <LinearGradient
-                    colors={['rgba(0,0,0,1)', 'transparent']}
-                    style={{
-                        position: 'absolute',
-                        left: 0,
-                        right: 0,
-                        top: 0,
-                        height: 100,
-                    }}
+                    //prop
+                    colors={[`rgba(0,0,0,${headerGradientTransparency})`, 'transparent']}
+                    style={[styles.linearGradient]}
                 />
-                {/* ANIMATION BARS */}
                 <View
-                    style={{
-                        flexDirection: 'row',
-                        paddingTop: 12,
-                        paddingHorizontal: 12,
-                    }}>
-                    {content.map((index, key) => {
-                        return (
-                            // THE BACKGROUND
-                            <View
-                                key={key}
-                                style={{
-                                    height: 2,
-                                    borderRadius: 16,
-                                    flex: 1,
-                                    flexDirection: 'row',
-                                    backgroundColor: 'rgba(117, 117, 117, 0.5)',
-                                    marginHorizontal: 2,
-                                }}>
-                                {/* THE ANIMATION OF THE BAR*/}
-                                <Animated.View
-                                    style={{
-                                        flex: current == key ? progress : content[key]?.finish,
-                                        height: 2,
-                                        backgroundColor: "#fff",
-                                    }}
-                                />
-                            </View>
-                        );
-                    })}
-                </View>
-                {/* END OF ANIMATION BARS */}
-
-                <View
-                    style={{
-                        height: 50,
-                        flexDirection: 'row',
-
-                        justifyContent: 'space-between',
-                        paddingHorizontal: 15,
-                    }}
+                    style={[styles.topContainer]}
                 >
-                    {/* THE AVATAR AND USERNAME  */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 8 }}>
-                        {/* <FastImage */}
-                        <Image
-                            style={{ height: 36, width: 36, borderRadius: 25 }}
-                            source={{
-                                uri: data[currentStoryIndex]?.profileImage
-                            }}
-                        />
-                        <View style={{ alignItems: 'center' }}>
-                            <Text
-                                numberOfLines={1}
-                                style={{ width: Dimensions.get('window').width / 1.5, paddingLeft: 12, color: "#fff" }}>
-                                {data[currentStoryIndex]?.profileName}
-                            </Text>
-                            {/* <Text numberOfLines={1}
-                                style={{ width: Dimensions.get('window').width / 1.5, paddingLeft: 12, color: "#fff" }}>
-                                {timeSince(data[currentStoryIndex]?.stories[current]?.date)}
-                            </Text> */}
+                    {/* ANIMATION BARS */}
+                    <View
+                        style={[styles.animationBarsContainer]}>
+                        {content.map((item, index) => {
+                            return (
+                                // THE BACKGROUND
+                                <View
+                                    key={item.mediaType + index}
+                                    style={{
+                                        height: animationBarHeight,
+                                        borderRadius: isAnimationBarRounded ? 16 : 0,
+                                        flex: 1,
+                                        flexDirection: 'row',
+                                        backgroundColor: 'rgba(117, 117, 117, 0.5)',
+                                        marginHorizontal: 2,
+                                    }}>
+                                    {/* THE ANIMATION OF THE BAR*/}
+                                    <Animated.View
+                                        style={{
+                                            flex: current == index ? progress : content[index]?.finish,
+                                            height: animationBarHeight,
+                                            backgroundColor: animationBarColor,
+                                            borderRadius: isAnimationBarRounded ? 16 : 0,
+                                        }}
+                                    />
+                                </View>
+                            );
+                        })}
+                    </View>
+                    {/* END OF ANIMATION BARS */}
+
+                    <View style={[styles.avatarAndIconsContainer]}>
+                        {/* THE AVATAR AND USERNAME  */}
+                        <View style={styles.avatarAndProfileContainer}>
+                            <Image
+                                style={[styles.profileImage, storyViewProfileImageStyles]}
+                                source={{
+                                    uri: stories[currentStoryIndex]?.profileImage
+                                }} />
+                            <View>
+                                <Text
+                                    numberOfLines={1}
+                                    style={[{ width: width / 1.75 }, styles.profileName, storyViewProfileNameStyles]}>
+                                    {stories[currentStoryIndex]?.profileName}
+                                </Text>
+                                {stories[currentStoryIndex]?.stories[current]?.date ?
+                                    <Text numberOfLines={1}
+                                        style={[{ width: width / 1.75 }, styles.uploadedAt]}>
+                                        {timeSince(stories[currentStoryIndex]?.stories[current]?.date)}
+                                    </Text> : null}
+                            </View>
+                        </View>
+                        {/* END OF THE AVATAR AND USERNAME */}
+
+                        <View style={styles.iconContainer}>
+                            {/* MUTE BUTTON */}
+                            {content[current]?.mediaType == 'video' && <Pressable onPress={() => setIsMuted(!isMuted)}>
+                                {isMuted ? <Unmute height={iconSize} width={iconSize} fill={iconColor} stroke={iconColor} />
+                                    : <Mute height={iconSize} width={iconSize} fill={iconColor} stroke={iconColor} />}
+                            </Pressable>}
+                            {/* END OF MUTE BUTTON */}
+                            {/* THE CLOSE BUTTON */}
+                            <Pressable style={{ marginLeft: 12 }} onPress={close}>
+                                <Close height={iconSize} width={iconSize} fill={iconColor} stroke={iconColor} />
+                            </Pressable>
+                            {/* END OF CLOSE BUTTON */}
                         </View>
                     </View>
-                    {/* END OF THE AVATAR AND USERNAME */}
-                     {/* Mute Button */}
-                     {content[current]?.mediaType == 'video' && <Pressable
-                        onPress={() => setIsMuted(!isMuted)}>
-                        <View
-                            style={{
-                                alignItems: 'center',
-                                justifyContent: 'center',
 
-                                height: 50,
-                                marginRight: 10,
-                            }}>
-                            {isMuted ? <Text>unmute</Text> : <Text>mute</Text>}
-                        </View>
-                    </Pressable>}
-                    {/* THE CLOSE BUTTON */}
-                    <TouchableOpacity
-                        onPress={() => {
-                            close();
-                        }}
-                    >
-                        <View
-                            style={{
-                                alignItems: 'center',
-                                justifyContent: 'center',
 
-                                height: 50,
-                                paddingHorizontal: 15,
-                            }}
-                        >
-                            <Text>close</Text>
-                        </View>
-                    </TouchableOpacity>
-                    {/* END OF CLOSE BUTTON */}
                 </View>
                 {/* HERE IS THE HANDLE FOR PREVIOUS AND NEXT PRESS */}
-                <View style={{ flex: 1, flexDirection: 'row' }}>
+                <View style={{ flex: 1, flexDirection: 'row', zIndex: -1 }}>
                     <TouchableWithoutFeedback
                         onLongPress={longPressHandler}
                         delayLongPress={150}
@@ -351,14 +364,30 @@ export default function App({ data, currentStoryIndex, setCurrentStoryIndex, set
                 </View>
                 {/* END OF THE HANDLE FOR PREVIOUS AND NEXT PRESS */}
             </View>
-        </View>
+            
+            {/* SEE MORE COMPONENT */}
+            {stories[currentStoryIndex]?.stories[current]?.seeMoreUrl ? <View style={[styles.seeMoreContainer, seeMoreContainerStyles]}>
+                <Pressable onPress={() => {
+                    Linking.openURL(stories[currentStoryIndex]?.stories[current]?.seeMoreUrl || "")
+
+                }} style={[styles.seeMore, seeMoreStyles]}>
+                    <Open
+                        height={seeMoreIconSize}
+                        width={seeMoreIconSize}
+                        fill={seeMoreIconColor}
+                        style={{ marginRight: 4 }} />
+                    <Text style={[{ color: "#fff" }, seeMoreTextStyles]}>{seeMoreText}</Text>
+                </Pressable>
+            </View> : null}
+            {/* END OF SEE MORE COMPONENT */}
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     containerModal: {
         paddingTop: StatusBar.currentHeight,
-        height: Dimensions.get("window").height,
+        height: height,
         backgroundColor: '#000',
         position: 'absolute',
         top: 0,
@@ -372,4 +401,65 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0
     },
+    linearGradient: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 0,
+        height: 120,
+    },
+    topContainer: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 40,
+        height: 100,
+    },
+    animationBarsContainer: {
+        flexDirection: 'row',
+        paddingTop: 12,
+        paddingHorizontal: 12,
+    },
+    avatarAndIconsContainer: {
+        height: 50,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+    },
+    avatarAndProfileContainer: {
+        flexDirection: 'row',
+        alignItems: 'center'
+    },
+    profileImage: {
+        height: 36,
+        width: 36,
+        borderRadius: 25
+    },
+    profileName: {
+        color: "#fff",
+        marginLeft: 12
+    },
+    uploadedAt: {
+        color: "#fff",
+        marginLeft: 12
+    },
+    iconContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between'
+    },
+    seeMoreContainer: {
+        position: 'absolute',
+        alignItems: 'center',
+        width: width,
+        bottom: 32,
+    },
+    seeMore: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#000',
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 50
+    }
 });
