@@ -13,9 +13,7 @@ npm install rn-story
 ```js
 import Stories from 'rn-story';
 
-// ...
-
- <Stories stories={stories} />
+<Stories stories={stories} />
 ```
 
 ## Contributing
