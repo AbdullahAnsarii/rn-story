@@ -1,13 +1,14 @@
-import { StyleSheet, SafeAreaView } from 'react-native';
-import StoryView from 'rn-story';
+import { useState } from 'react';
+import { StyleSheet, SafeAreaView, FlatList, Pressable, View, Image, Text, Dimensions, StatusBar } from 'react-native';
+import Stories from 'rn-story';
 import type { Data } from 'src/types';
 
 export default function App() {
-  const data:Data[] = [
+  const data: Data[] = [
     {
       profileImage:
-        'https://firebasestorage.googleapis.com/v0/b/instagram-clone-f3106.appspot.com/o/ylKTg2Mg_400x400.jpg?alt=media&token=3075b901-6080-4ea7-b539-fdfad1f8a36d',
-      profileName: 'image',
+        'https://firebasestorage.googleapis.com/v0/b/fir-demo-48533.appspot.com/o/IMG_1339.png?alt=media&token=46318228-a75d-4ea5-8beb-e37978d520a9&_gl=1*1339f4z*_ga*Nzc2MTE5NjIzLjE2ODYzMTE4Mzc.*_ga_CW55HF8NVT*MTY4NjMxMTgzNy4xLjEuMTY4NjMxMTk3Ni4wLjAuMA',
+      profileName: 'Abdullah Ansari',
       viewed: false,
       id: 1,
       stories: [
@@ -29,8 +30,8 @@ export default function App() {
     },
     {
       profileImage:
-        'https://firebasestorage.googleapis.com/v0/b/instagram-clone-f3106.appspot.com/o/ylKTg2Mg_400x400.jpg?alt=media&token=3075b901-6080-4ea7-b539-fdfad1f8a36d',
-      profileName: 'image',
+        'https://firebasestorage.googleapis.com/v0/b/fir-demo-48533.appspot.com/o/IMG_1339.png?alt=media&token=46318228-a75d-4ea5-8beb-e37978d520a9&_gl=1*1339f4z*_ga*Nzc2MTE5NjIzLjE2ODYzMTE4Mzc.*_ga_CW55HF8NVT*MTY4NjMxMTgzNy4xLjEuMTY4NjMxMTk3Ni4wLjAuMA',
+      profileName: 'Abdullah Ansari',
       viewed: false,
       id: 2,
       stories: [
@@ -50,8 +51,8 @@ export default function App() {
     },
     {
       profileImage:
-        'https://firebasestorage.googleapis.com/v0/b/instagram-clone-f3106.appspot.com/o/ylKTg2Mg_400x400.jpg?alt=media&token=3075b901-6080-4ea7-b539-fdfad1f8a36d',
-      profileName: 'image',
+        'https://firebasestorage.googleapis.com/v0/b/fir-demo-48533.appspot.com/o/IMG_1339.png?alt=media&token=46318228-a75d-4ea5-8beb-e37978d520a9&_gl=1*1339f4z*_ga*Nzc2MTE5NjIzLjE2ODYzMTE4Mzc.*_ga_CW55HF8NVT*MTY4NjMxMTgzNy4xLjEuMTY4NjMxMTk3Ni4wLjAuMA',
+      profileName: 'Abdullah Ansari',
       viewed: false,
       id: 3,
       stories: [
@@ -66,12 +67,48 @@ export default function App() {
       ]
     },
   ];
-
-
+  const [currentStoryIndex, setCurrentStoryIndex] = useState<number | null>(null);
 
   return (
     <SafeAreaView style={styles.container}>
-      <StoryView data={data} />
+      <StatusBar />
+      <FlatList
+        horizontal
+        data={data}
+        keyExtractor={(item) => "story-" + item.id.toString()}
+        renderItem={({ item, index }) => (
+          <Pressable
+            onPress={() => setCurrentStoryIndex(index)}
+            style={[styles.storyContainer]}>
+            <View
+              style={[styles.imageContainer,
+              item.viewed ? styles.viewedStory : styles.newStory]}>
+              <Image
+                style={[styles.storyImage]}
+                resizeMode={"cover"}
+                source={{ uri: item?.profileImage }}
+              />
+            </View>
+            <Text
+              numberOfLines={1}
+              style={[styles.profileNameHorizontal]}>
+              {item?.profileName}
+            </Text>
+          </Pressable>
+        )}
+        ItemSeparatorComponent={() => <View
+          style={{
+            width: 12,
+            height: 12
+          }} />}
+      />
+      {currentStoryIndex !== null &&
+        <Stories
+          stories={data[currentStoryIndex].stories}
+          // currentIndex={currentStoryIndex}
+          onNext={() =>console.log('hooray')}
+          onNextEnd={() =>console.log('jooray')}
+          />}
     </SafeAreaView>
   );
 }
@@ -79,7 +116,38 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'center',
+  },
+  storyContainer: {
+    alignItems: 'center',
+
+  },
+  verticalContainer: {
+    flexDirection: 'row'
+  },
+  imageContainer: {
+    borderWidth: 2,
+    borderRadius: 50,
+    padding: 3
+  },
+  newStory: {
+    borderColor: '#25D366',
+  },
+  viewedStory: {
+    borderColor: '#D3D3D3'
+  },
+  storyImage: {
+    height: 64,
+    width: 64,
+    borderRadius: 50
+  },
+  profileNameHorizontal: {
+    width: Dimensions?.get('window')?.width / 5,
+    textAlign: 'center',
+  },
+  profileNameVertical: {
+    width: Dimensions?.get('window')?.width / 1.5,
+    marginLeft: 12
   }
 });

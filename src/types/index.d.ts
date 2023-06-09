@@ -9,7 +9,9 @@ export type Data = {
 export type Story = {
     media: string;
     mediaType: "image" | "video";
+    duration?: number;
     caption?: string;
     date?: Date | string;
     seeMoreUrl?: string
 }
+

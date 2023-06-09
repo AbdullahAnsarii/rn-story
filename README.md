@@ -11,11 +11,11 @@ npm install rn-story
 ## Usage
 
 ```js
-import { multiply } from 'rn-story';
+import Stories from 'rn-story';
 
 // ...
 
-const result = await multiply(3, 7);
+ <Stories stories={stories} />
 ```
 
 ## Contributing
@@ -24,7 +24,7 @@ See the [contributing guide](CONTRIBUTING.md) to learn how to contribute to the 
 
 ## License
 
-MIT
+MIT © [AbdullahAnsarii](https://github.com/AbdullahAnsarii)
 
 ---
 
