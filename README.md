@@ -1,3 +1,9 @@
+## Important
+
+The documentation is on the way and will be available soon.
+
+---
+
 # rn-story
 
 React Native component for stories like instagram, whatsapp and snapchat
