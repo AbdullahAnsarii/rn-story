@@ -86,7 +86,7 @@ A simple 'story object' needs to be passed in the `stories` array.
 
   
   ## Example
-
+[Full soure code for the example available here](https://github.com/AbdullahAnsarii/rn-story/tree/master/example)
  - Start by importing required dependencies
 ```jsx
 import { useState } from  'react';
