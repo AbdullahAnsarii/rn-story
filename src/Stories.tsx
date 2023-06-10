@@ -7,7 +7,6 @@ import {
     TouchableWithoutFeedback,
     Image,
     Animated,
-    StatusBar,
     Pressable,
     SafeAreaView,
     Modal,
@@ -17,6 +16,7 @@ import type { Story } from './types';
 import type { TextStyle } from 'react-native';
 import { Linking } from 'react-native';
 import type { ViewStyle } from 'react-native';
+import { Platform } from 'react-native';
 const { width, height } = Dimensions.get('window');
 
 type StoryType = Story & {
@@ -35,13 +35,12 @@ type PropTypes = {
     animationBarHeight?: number,
     animationBarColor?: string,
     seeMoreText?: string,
-    seeMoreContainerStyles?: ViewStyle,
     seeMoreStyles?: ViewStyle,
     seeMoreTextStyles?: TextStyle,
 }
 export default function Stories({
     stories,
-    currentIndex,
+    currentIndex = 0,
     onPrevious,
     onPreviousEnd,
     onNext,
@@ -52,9 +51,8 @@ export default function Stories({
     animationBarHeight = 2,
     animationBarColor = "#fff",
     seeMoreText = "View Details",
-    seeMoreContainerStyles,
-    seeMoreStyles,
-    seeMoreTextStyles
+    seeMoreStyles = {},
+    seeMoreTextStyles = {}
 
 }: PropTypes) {
     //to hold the stories and add a proeprty finish to keep track of finished stories for animation
@@ -68,7 +66,7 @@ export default function Stories({
     //to get the duration
     const [end, setEnd] = useState(0);
     //current is for get the current content is now playing
-    const [current, setCurrent] = useState(currentIndex ? currentIndex : 0);
+    const [current, setCurrent] = useState(currentIndex);
     //progress is the animation value of the bars content playing the current state
     const progress = useRef(new Animated.Value(0)).current;
 
@@ -117,6 +115,9 @@ export default function Stories({
 
     const next = () => {
         setPosition(0);
+        if (onNext) {
+            onNext()
+        }
         // check if the next content is not empty
         if (current !== content.length - 1) {
             let _temp = [...content];
@@ -124,11 +125,9 @@ export default function Stories({
             setContent(_temp);
             setCurrent(current + 1);
             progress.setValue(0);
-            if (onNext) {
-                onNext()
-            }
+
         } else {
-            progress.setValue(1);
+            // progress.setValue(1);
             if (onNextEnd) {
                 onNextEnd()
             }
@@ -140,14 +139,15 @@ export default function Stories({
     const previous = () => {
         setPosition(0);
         progress.setValue(0);
+        if (onPrevious)
+            onPrevious()
         // checking if the previous content is not empty
         if (current - 1 >= 0) {
             let _temp = [...content];
             _temp[current].finish = 0;
             setContent(_temp);
             setCurrent(current - 1);
-            if (onPrevious)
-                onPrevious()
+
         } else {
             // progress.setValue(0);
             start(end);
@@ -172,8 +172,7 @@ export default function Stories({
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar backgroundColor="black" barStyle="light-content" />
+        <SafeAreaView style={[styles.container]}>
             {/* MODAL */}
             <Modal animationType="fade" transparent={false} visible={true}>
 
@@ -286,7 +285,7 @@ export default function Stories({
                             ]
                         }} />}
                     {/* SEE MORE COMPONENT */}
-                    {content[current]?.seeMoreUrl ? <View style={[styles.seeMoreContainer, seeMoreContainerStyles]}>
+                    {content[current]?.seeMoreUrl ? <View style={[styles.seeMoreContainer]}>
                         <Pressable onPress={() => {
                             Linking.openURL(content[current]?.seeMoreUrl || "")
 
@@ -303,10 +302,9 @@ export default function Stories({
 
 const styles = StyleSheet.create({
     container: {
-
+        
     },
     containerModal: {
-        paddingTop: StatusBar.currentHeight,
         height: height,
         backgroundColor: '#000',
         position: 'absolute',
@@ -321,19 +319,12 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0
     },
-    linearGradient: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        top: 0,
-        height: 120,
-    },
     topContainer: {
         position: 'absolute',
         left: 0,
         right: 0,
-        top: 40,
-        height: 100,
+        top: Platform.OS === "ios" ? 47 : 0,
+        height: 100
     },
     animationBarsContainer: {
         flexDirection: 'row',
@@ -347,27 +338,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 16,
     },
-    avatarAndProfileContainer: {
-        flexDirection: 'row',
-        alignItems: 'center'
-    },
-    profileImage: {
-        height: 36,
-        width: 36,
-        borderRadius: 25
-    },
-    profileName: {
-        color: "#fff",
-        marginLeft: 12
-    },
-    uploadedAt: {
-        color: "#fff",
-        marginLeft: 12
-    },
-    iconContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between'
-    },
     seeMoreContainer: {
         position: 'absolute',
         alignItems: 'center',
@@ -375,8 +345,6 @@ const styles = StyleSheet.create({
         bottom: 32,
     },
     seeMore: {
-        flexDirection: 'row',
-        alignItems: 'center',
         backgroundColor: '#000',
         paddingVertical: 10,
         paddingHorizontal: 16,

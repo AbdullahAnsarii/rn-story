@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, SafeAreaView, FlatList, Pressable, View, Image, Text, Dimensions, StatusBar } from 'react-native';
 import Stories from 'rn-story';
-import type { Data } from 'src/types';
+import { Story } from 'src/types';
 
 export default function App() {
   const data: Data[] = [
@@ -15,8 +15,8 @@ export default function App() {
         {
           media: 'https://firebasestorage.googleapis.com/v0/b/fir-demo-48533.appspot.com/o/1-1.jpg?alt=media&token=91d1f0f4-cf45-41ee-9a51-08b348093b92&_gl=1*87eejn*_ga*MTYwNzQ2OTU4Mi4xNjgxNjQ2NDk5*_ga_CW55HF8NVT*MTY4NTQ1MDE3NC4xMi4xLjE2ODU0NTIxMTYuMC4wLjA',
           mediaType: 'image',
-          date: '2023-05-31',
-          seeMoreUrl: 'https://abdullahansari.me'
+          seeMoreUrl: 'https://abdullahansari.me',
+          duration:12000
         },
         {
           media: 'https://firebasestorage.googleapis.com/v0/b/fir-demo-48533.appspot.com/o/1-2.jpg?alt=media&token=213211d6-d1e6-4b41-bb58-0f23ecaf071e&_gl=1*17ngmn8*_ga*MTYwNzQ2OTU4Mi4xNjgxNjQ2NDk5*_ga_CW55HF8NVT*MTY4NTQ1MDE3NC4xMi4xLjE2ODU0NTIxNDEuMC4wLjA',
@@ -105,9 +105,6 @@ export default function App() {
       {currentStoryIndex !== null &&
         <Stories
           stories={data[currentStoryIndex].stories}
-          // currentIndex={currentStoryIndex}
-          onNext={() =>console.log('hooray')}
-          onNextEnd={() =>console.log('jooray')}
           />}
     </SafeAreaView>
   );
@@ -151,3 +148,12 @@ const styles = StyleSheet.create({
     marginLeft: 12
   }
 });
+
+export type Data = {
+  profileName: string;
+  profileImage: string;
+  id: string | number;
+  stories: Story[];
+  viewed: boolean;
+}
+

@@ -1,6 +1,6 @@
 {
   "name": "rn-story",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "description": "test",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
@@ -37,8 +37,11 @@
   },
   "keywords": [
     "react-native",
-    "ios",
-    "android"
+    "expo",
+    "insta-story",
+    "stories",
+    "instagram",
+    "snapchat"
   ],
   "repository": "https://github.com/AbdullahAnsarii/rn-story",
   "author": "Abdullah Ansari <aa9272137@gmail.com> (https://github.com/AbdullahAnsarii)",
