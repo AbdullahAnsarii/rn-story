@@ -59,7 +59,7 @@ https://snack.expo.dev/@abdullahansari/rn-story
 
 ### Story object
 
-Instead of simple string url, a comprehensive 'story object' can also be passed in the `stories` array.
+A simple 'story object' needs to be passed in the `stories` array.
 
 | Property           | Description                                                                                                                                   |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
