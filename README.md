@@ -1,4 +1,5 @@
 
+
   
 
 <h1  style="margin: 0"  align="center">rn-story</h1>
@@ -80,8 +81,7 @@ A simple 'story object' needs to be passed in the `stories` array.
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `media`              | The url of the resource, be it image or video.                                                                                                |
 | `mediaType`             |  Type of the story. `type: 'video'                                                                                                   | 'image'`. Type `video` is necessary for a video story. |
-| `duration?`         | Optional. Duration for which a story should persist.                                                                                          |
-| `header`           | Optional. Adds a header on the top. Object with `heading`, `subheading` and `profileImage` properties.                                        |
+| `duration?`         | Optional. Duration for which a story should persist.                                                                                                                              
 | `seeMoreUrl`          | Optional. Shows the See More button at the bottom and adds the url for that button as well.
 
   
