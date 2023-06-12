@@ -109,6 +109,7 @@ The `package.json` file contains various scripts for common tasks:
 
 When you're sending a pull request:
 
+- Create pull request in main branch.
 - Prefer small pull requests focused on one change.
 - Verify that linters and tests are passing.
 - Review the documentation to make sure it looks good.
