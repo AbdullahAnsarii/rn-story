@@ -26,9 +26,9 @@ type PropTypes = {
     stories: Story[],
     currentIndex?: number,
     onPrevious?: Function,
-    onPreviousEnd?: Function,
+    onPreviousFirstStory?: Function,
     onNext?: Function,
-    onNextEnd?: Function,
+    onAllStoriesEnd?: Function,
     videoVolume?: number,
     isMuted?: boolean,
     isAnimationBarRounded?: boolean,
@@ -42,9 +42,9 @@ export default function Stories({
     stories,
     currentIndex = 0,
     onPrevious,
-    onPreviousEnd,
+    onPreviousFirstStory,
     onNext,
-    onNextEnd,
+    onAllStoriesEnd,
     videoVolume = 1.0,
     isMuted = false,
     isAnimationBarRounded = true,
@@ -128,8 +128,8 @@ export default function Stories({
 
         } else {
             // progress.setValue(1);
-            if (onNextEnd) {
-                onNextEnd()
+            if (onAllStoriesEnd) {
+                onAllStoriesEnd()
             }
         }
 
@@ -151,8 +151,8 @@ export default function Stories({
         } else {
             // progress.setValue(0);
             start(end);
-            if (onPreviousEnd) {
-                onPreviousEnd()
+            if (onPreviousFirstStory) {
+                onPreviousFirstStory()
             }
 
         }
