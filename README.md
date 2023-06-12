@@ -1,12 +1,9 @@
-# <center>rn-story</center>
+<h1 style="margin: 0" align="center">rn-story</h1>
 
-### <center>Lightweight React Native component for stories like instagram, whatsapp and snapchat</center>
+### Lightweight React Native component for stories like instagram, whatsapp and snapchat.
+<br>
 
-  
-<center>
 <img  height="600"  src="https://firebasestorage.googleapis.com/v0/b/fir-demo-48533.appspot.com/o/rn-story-preview.png?alt=media&token=5a0aada6-f69f-4a06-8f6f-cf7ffef79ded"  alt="Demo screenshot"/>
-</center>
-  
 
 ---
 
@@ -81,19 +78,19 @@ A simple 'story object' needs to be passed in the `stories` array.
 | `seeMoreUrl?`          | Optional. Shows the See More button at the bottom and adds the url for that button as well.
 
   
-  ## Example
-[Full soure code for the example available here](https://github.com/AbdullahAnsarii/rn-story/tree/master/example)
- 
+## Example
+
+### Just copy and paste the following code.
+
  ```jsx
- import { useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, SafeAreaView, Pressable, View, Image, Text, Dimensions, StatusBar, ScrollView } from 'react-native';
 import Stories from 'rn-story';
 
 export default function App() {
   const data: Data[] = [
     {
-      profileImage:
-        'https://shorturl.at/fhUV1',
+      profileImage: 'https://shorturl.at/fhUV1',
       profileName: 'Abdullah Ansari',
       viewed: false,
       id: 1,
@@ -115,8 +112,7 @@ export default function App() {
       ]
     },
     {
-      profileImage:
-        'https://shorturl.at/fhUV1',
+      profileImage: 'https://shorturl.at/fhUV1',
       profileName: 'Abdullah Ansari',
       viewed: false,
       id: 2,
@@ -218,6 +214,8 @@ export type Story = {
   seeMoreUrl?: string
 }
  ```
+[Full soure code for the example available here](https://github.com/AbdullahAnsarii/rn-story/tree/master/example)
+ 
 
 ## Upcoming Features
 - Support for custom header.
