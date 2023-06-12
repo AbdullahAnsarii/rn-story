@@ -19,7 +19,14 @@
 npm install rn-story
 ```
 
-  
+## Features
+- Typescript support.
+- Expo support. 
+- Video stories support.
+- Next and previous callbacks.
+- mute/unmute support.
+- Video volume modification support.
+- See more url support.
 
   
 
@@ -31,7 +38,6 @@ npm install rn-story
 
 ```jsx
 import  Stories  from  'rn-story';
-
 
 //minimal usage
 
