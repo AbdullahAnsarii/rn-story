@@ -1,9 +1,12 @@
-import { useState } from 'react';
-import { StyleSheet, SafeAreaView, Pressable, View, Image, Text, Dimensions, StatusBar, ScrollView } from 'react-native';
+import Close from 'example/assets/Close';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect, useState } from 'react';
+import { StyleSheet, SafeAreaView, Pressable, View, Image, Text, Dimensions, StatusBar, ScrollView, Platform } from 'react-native';
 import Stories from 'rn-story';
+const { width } = Dimensions.get('window');
 
 export default function App() {
-  const data: Data[] = [
+  const [data, setData] = useState<Data[]>([
     {
       profileImage:
         'https://shorturl.at/fhUV1',
@@ -30,7 +33,7 @@ export default function App() {
     {
       profileImage:
         'https://shorturl.at/fhUV1',
-      profileName: 'Abdullah Ansari',
+      profileName: 'Abdullah Ansari 2',
       viewed: false,
       id: 2,
       stories: [
@@ -44,10 +47,51 @@ export default function App() {
         }
       ]
     }
-  ];
+  ]);
   //setting this state to null will close the story view
   const [currentStoryIndex, setCurrentStoryIndex] = useState<number | null>(null);
 
+  useEffect(() => {
+    //we are adding header to each story item
+    const _tempData = [...data];
+    _tempData.forEach((story) => {
+      story.stories.forEach((storyItem) => {
+        storyItem.header = <View style={[styles.avatarAndIconsContainer]}>
+          {/* THE AVATAR AND USERNAME  */}
+          <View style={[styles.avatarAndIconsContainer]}>
+            <LinearGradient
+              colors={[`rgba(0,0,0,0.25)`, 'transparent']}
+              style={[styles.linearGradient]}
+            />
+            <View style={styles.avatarAndProfileContainer}>
+              <Image
+                style={[styles.profileImage]}
+                source={{
+                  uri: story?.profileImage
+                }} />
+              <View>
+                <Text
+                  numberOfLines={1}
+                  style={[{ width: width / 1.75 }, styles.profileName]}>
+                  {story?.profileName}
+                </Text>
+              </View>
+            </View>
+            {/* END OF THE AVATAR AND USERNAME */}
+          </View>
+          <View style={styles.iconContainer}>
+            {/* THE CLOSE BUTTON */}
+            <Pressable style={{ marginLeft: 12 }} onPress={() => setCurrentStoryIndex(null)}>
+              <Close height={28} width={28} fill={"#fff"} stroke={"#fff"} />
+            </Pressable>
+            {/* END OF CLOSE BUTTON */}
+          </View>
+        </View>
+      });
+    });
+    setData(_tempData);
+  }, []);
+  
   return (
     <SafeAreaView >
       <StatusBar />
@@ -79,9 +123,9 @@ export default function App() {
         <Stories
           stories={data[currentStoryIndex].stories}
           //called when user taps on next
-          onNext={() => console.log('next pressed')}
+          onNext={() => console.log("next")}
           //called when user taps on previous
-          onPrevious={() => console.log('previous pressed')}
+          onPrevious={() => console.log("previous")}
           // close story view if there are no more stories to go next to
           onAllStoriesEnd={() => setCurrentStoryIndex(null)}
           //close story view if there are no more stories to go back to
@@ -114,7 +158,44 @@ const styles = StyleSheet.create({
   profileNameHorizontal: {
     width: Dimensions?.get('window')?.width / 5,
     textAlign: 'center',
-  }
+  },
+  avatarAndIconsContainer: {
+    height: 50,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  linearGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: Platform.OS === "ios" ? -64 : 0,
+    height: 60,
+    width: Dimensions?.get('window')?.width,
+  },
+  avatarAndProfileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 12
+  },
+  profileImage: {
+    height: 36,
+    width: 36,
+    borderRadius: 25
+  },
+  profileName: {
+    color: "#fff",
+    marginLeft: 12
+  },
+  uploadedAt: {
+    color: "#fff",
+    marginLeft: 12
+  },
+  iconContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginRight: 12
+  },
 });
 
 export type Data = {
@@ -128,6 +209,7 @@ export type Story = {
   media: string;
   mediaType: "image" | "video";
   duration?: number;
+  header?: JSX.Element;
   seeMoreUrl?: string
 }
 

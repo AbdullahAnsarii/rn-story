@@ -301,7 +301,8 @@ export default function Stories({
                                 })}
                             </View>
                             {/* END OF ANIMATION BARS */}
-
+                            {/* THE HEADER */} 
+                            {content[current]?.header}
                         </View>
                         {/* HERE IS THE HANDLE FOR PREVIOUS AND NEXT PRESS */}
                         <View style={{ flex: 1, flexDirection: 'row', zIndex: -1 }}>

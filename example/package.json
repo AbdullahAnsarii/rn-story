@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "expo": "~48.0.15",
+    "expo-linear-gradient": "^12.1.2",
     "expo-status-bar": "~1.4.4",
     "react": "18.2.0",
     "react-dom": "18.2.0",

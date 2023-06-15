@@ -1,6 +1,6 @@
 <h1 style="margin: 0" align="center">rn-story</h1>
 
-### Lightweight React Native component for stories like instagram, whatsapp and snapchat.
+### Lightweight React Native component for stories like Instagram, Whatsapp and Snapchat.
 <br>
 
 <img  height="600"  src="https://firebasestorage.googleapis.com/v0/b/fir-demo-48533.appspot.com/o/rn-story-preview.png?alt=media&token=5a0aada6-f69f-4a06-8f6f-cf7ffef79ded"  alt="Demo screenshot"/>
@@ -27,7 +27,7 @@ npm install rn-story
 - mute/unmute support.
 - Video volume modification support.
 - See more url support.
-
+- Custom header support
   
 
 ## Usage
@@ -81,6 +81,7 @@ A simple 'story object' needs to be passed in the `stories` array.
 | `media`              | The url of the resource, be it image or video.                                                                                                |
 | `mediaType`             |  Type of the story. type: 'video' or 'image'                                                                                                   | 'image'`. Type `video` is necessary for a video story. |
 | `duration?`         | Optional. Duration for which a story should persist.                                                                                                                              
+| `header?`         | Optional. Header component which will be displayed just below animation bars, ideal for avatar, close button and linear gradient.                                                                                                                              
 | `seeMoreUrl?`          | Optional. Shows the See More button at the bottom and adds the url for that button as well.
 
   
@@ -89,14 +90,18 @@ A simple 'story object' needs to be passed in the `stories` array.
 ### Just copy and paste the following code.
 
  ```jsx
-import { useState } from 'react';
-import { StyleSheet, SafeAreaView, Pressable, View, Image, Text, Dimensions, StatusBar, ScrollView } from 'react-native';
+import Close from 'example/assets/Close';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect, useState } from 'react';
+import { StyleSheet, SafeAreaView, Pressable, View, Image, Text, Dimensions, StatusBar, ScrollView, Platform } from 'react-native';
 import Stories from 'rn-story';
+const { width } = Dimensions.get('window');
 
 export default function App() {
-  const data: Data[] = [
+  const [data, setData] = useState<Data[]>([
     {
-      profileImage: 'https://shorturl.at/fhUV1',
+      profileImage:
+        'https://shorturl.at/fhUV1',
       profileName: 'Abdullah Ansari',
       viewed: false,
       id: 1,
@@ -118,8 +123,9 @@ export default function App() {
       ]
     },
     {
-      profileImage: 'https://shorturl.at/fhUV1',
-      profileName: 'Abdullah Ansari',
+      profileImage:
+        'https://shorturl.at/fhUV1',
+      profileName: 'Abdullah Ansari 2',
       viewed: false,
       id: 2,
       stories: [
@@ -133,10 +139,51 @@ export default function App() {
         }
       ]
     }
-  ];
+  ]);
   //setting this state to null will close the story view
   const [currentStoryIndex, setCurrentStoryIndex] = useState<number | null>(null);
 
+  useEffect(() => {
+    //we are adding header to each story item
+    const _tempData = [...data];
+    _tempData.forEach((story) => {
+      story.stories.forEach((storyItem) => {
+        storyItem.header = <View style={[styles.avatarAndIconsContainer]}>
+          {/* THE AVATAR AND USERNAME  */}
+          <View style={[styles.avatarAndIconsContainer]}>
+            <LinearGradient
+              colors={[`rgba(0,0,0,0.25)`, 'transparent']}
+              style={[styles.linearGradient]}
+            />
+            <View style={styles.avatarAndProfileContainer}>
+              <Image
+                style={[styles.profileImage]}
+                source={{
+                  uri: story?.profileImage
+                }} />
+              <View>
+                <Text
+                  numberOfLines={1}
+                  style={[{ width: width / 1.75 }, styles.profileName]}>
+                  {story?.profileName}
+                </Text>
+              </View>
+            </View>
+            {/* END OF THE AVATAR AND USERNAME */}
+          </View>
+          <View style={styles.iconContainer}>
+            {/* THE CLOSE BUTTON */}
+            <Pressable style={{ marginLeft: 12 }} onPress={() => setCurrentStoryIndex(null)}>
+              <Close height={28} width={28} fill={"#fff"} stroke={"#fff"} />
+            </Pressable>
+            {/* END OF CLOSE BUTTON */}
+          </View>
+        </View>
+      });
+    });
+    setData(_tempData);
+  }, []);
+  
   return (
     <SafeAreaView >
       <StatusBar />
@@ -168,9 +215,9 @@ export default function App() {
         <Stories
           stories={data[currentStoryIndex].stories}
           //called when user taps on next
-          onNext={() => console.log('next pressed')}
+          onNext={() => console.log("next")}
           //called when user taps on previous
-          onPrevious={() => console.log('previous pressed')}
+          onPrevious={() => console.log("previous")}
           // close story view if there are no more stories to go next to
           onAllStoriesEnd={() => setCurrentStoryIndex(null)}
           //close story view if there are no more stories to go back to
@@ -203,7 +250,44 @@ const styles = StyleSheet.create({
   profileNameHorizontal: {
     width: Dimensions?.get('window')?.width / 5,
     textAlign: 'center',
-  }
+  },
+  avatarAndIconsContainer: {
+    height: 50,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  linearGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: Platform.OS === "ios" ? -64 : 0,
+    height: 60,
+    width: Dimensions?.get('window')?.width,
+  },
+  avatarAndProfileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 12
+  },
+  profileImage: {
+    height: 36,
+    width: 36,
+    borderRadius: 25
+  },
+  profileName: {
+    color: "#fff",
+    marginLeft: 12
+  },
+  uploadedAt: {
+    color: "#fff",
+    marginLeft: 12
+  },
+  iconContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginRight: 12
+  },
 });
 
 export type Data = {
@@ -217,6 +301,7 @@ export type Story = {
   media: string;
   mediaType: "image" | "video";
   duration?: number;
+  header?: JSX.Element;
   seeMoreUrl?: string
 }
  ```
@@ -224,7 +309,6 @@ export type Story = {
  
 
 ## Upcoming Features
-- Support for custom header.
 - Support for custom see more component.
 - Support for custom loading component.
 
