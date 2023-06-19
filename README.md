@@ -27,7 +27,8 @@ npm install rn-story
 - mute/unmute support.
 - Video volume modification support.
 - See more url support.
-- Custom header support
+- Custom header support.
+- Support for custom loading component.
   
 
 ## Usage
@@ -70,6 +71,7 @@ import  Stories  from  'rn-story';
 | `onPreviousFirstStory`          | Function        | -                         | Callback when the user taps/press to go back to the previous story but you are on the first story, i.e there are no more stories to go back (suitable for closing story view or update index to show previous profile story)                                                                                                                                        |
 | `onNext`               | Function        | -                         | Callback when the user taps/press to proceed to the next story                                                                                                                   |
 | `onAllStoriesEnd`           | Function        | -                         | Callback when the user taps/press to proceed to next story but you are on the last story, i.e there are no more stories to go forward (suitable for closing story view or update index to show next story) |
+| `loadingComponent`           | JSX Component        | -                         |  Override default loading component with custom loading component |
 
 
 ### Story object
@@ -222,6 +224,13 @@ export default function App() {
           onAllStoriesEnd={() => setCurrentStoryIndex(null)}
           //close story view if there are no more stories to go back to
           onPreviousFirstStory={() => setCurrentStoryIndex(null)}
+          //custom loading component
+          loadingComponent={<Text style={{
+            position: 'absolute',
+            color: '#fff',
+            bottom: Dimensions.get("window").height / 2,
+            left: Dimensions.get("window").width / 2, transform: [{ translateX: -50 }]
+        }}>Custom Loading...</Text>}
         />}
     </SafeAreaView>
   );
@@ -310,7 +319,7 @@ export type Story = {
 
 ## Upcoming Features
 - Support for custom see more component.
-- Support for custom loading component.
+- SafeAreaView toggle
 
 ## Contributing
 See the [contributing guide](CONTRIBUTING.md) to learn how to contribute to the repository and the development workflow.

@@ -130,6 +130,13 @@ export default function App() {
           onAllStoriesEnd={() => setCurrentStoryIndex(null)}
           //close story view if there are no more stories to go back to
           onPreviousFirstStory={() => setCurrentStoryIndex(null)}
+          //custom loading component
+          loadingComponent={<Text style={{
+            position: 'absolute',
+            color: '#fff',
+            bottom: Dimensions.get("window").height / 2,
+            left: Dimensions.get("window").width / 2, transform: [{ translateX: -50 }]
+        }}>Custom Loading...</Text>}
         />}
     </SafeAreaView>
   );

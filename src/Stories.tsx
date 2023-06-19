@@ -87,6 +87,10 @@ type PropTypes = {
      * @default {}
      */
     seeMoreTextStyles?: TextStyle,
+    /**
+     * Override default LoadingComponent with custom loading component
+     */
+    loadingComponent?: JSX.Element
 }
 export default function Stories({
     stories,
@@ -102,7 +106,8 @@ export default function Stories({
     animationBarColor = "#fff",
     seeMoreText = "View Details",
     seeMoreStyles = {},
-    seeMoreTextStyles = {}
+    seeMoreTextStyles = {},
+    loadingComponent = undefined
 
 }: PropTypes) {
     //to hold the stories and add a proeprty finish to keep track of finished stories for animation
@@ -220,7 +225,7 @@ export default function Stories({
         setShouldPlay(true);
         start(end);
     }
-
+    
     return (
         <SafeAreaView style={[styles.container]}>
             {/* MODAL */}
@@ -301,7 +306,7 @@ export default function Stories({
                                 })}
                             </View>
                             {/* END OF ANIMATION BARS */}
-                            {/* THE HEADER */} 
+                            {/* THE HEADER */}
                             {content[current]?.header}
                         </View>
                         {/* HERE IS THE HANDLE FOR PREVIOUS AND NEXT PRESS */}
@@ -323,18 +328,18 @@ export default function Stories({
                         </View>
                         {/* END OF THE HANDLE FOR PREVIOUS AND NEXT PRESS */}
                     </View>
-                    {isLoading && <Image
-                        source={require('./assets/loading.png')}
-                        style={{
+                    {isLoading && <View style={{
+                        backgroundColor: '#000',
+                        width: width,
+                        height: height
+                    }}>{loadingComponent ? loadingComponent
+                        : <Text style={{
                             position: 'absolute',
-                            height: 60,
-                            width: 60,
+                            color: '#fff',
                             bottom: height / 2,
-                            left: width / 2,
-                            transform: [
-                                { translateX: -30 }
-                            ]
-                        }} />}
+                            left: width / 2, transform: [{ translateX: -30 }]
+                        }}>Loading...</Text>}
+                    </View>}
                     {/* SEE MORE COMPONENT */}
                     {content[current]?.seeMoreUrl ? <View style={[styles.seeMoreContainer]}>
                         <Pressable onPress={() => {
@@ -381,13 +386,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         paddingTop: 12,
         paddingHorizontal: 12,
-    },
-    avatarAndIconsContainer: {
-        height: 50,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 16,
     },
     seeMoreContainer: {
         position: 'absolute',
