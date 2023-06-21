@@ -1,3 +1,4 @@
+import Close from 'example/assets/Close';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import { StyleSheet, SafeAreaView, Pressable, View, Image, Text, Dimensions, StatusBar, ScrollView, Platform } from 'react-native';
@@ -81,8 +82,7 @@ export default function App() {
           <View style={styles.iconContainer}>
             {/* THE CLOSE BUTTON */}
             <Pressable style={{ marginLeft: 12 }} onPress={() => setCurrentStoryIndex(null)}>
-              {/* You can replace it with a close icon */}
-              <Text style={{ color: "#fff" }}>Close</Text>
+              <Close height={28} width={28} fill={"#fff"} stroke={"#fff"} />
             </Pressable>
             {/* END OF CLOSE BUTTON */}
           </View>
@@ -91,7 +91,7 @@ export default function App() {
     });
     setData(_tempData);
   }, []);
-
+  
   return (
     <SafeAreaView >
       <StatusBar />
@@ -136,7 +136,7 @@ export default function App() {
             color: '#fff',
             bottom: Dimensions.get("window").height / 2,
             left: Dimensions.get("window").width / 2, transform: [{ translateX: -50 }]
-          }}>Custom Loading...</Text>}
+        }}>Custom Loading...</Text>}
         />}
     </SafeAreaView>
   );

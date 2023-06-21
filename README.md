@@ -92,7 +92,6 @@ A simple 'story object' needs to be passed in the `stories` array.
 ### Just copy and paste the following code.
 
  ```jsx
-import Close from 'example/assets/Close';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import { StyleSheet, SafeAreaView, Pressable, View, Image, Text, Dimensions, StatusBar, ScrollView, Platform } from 'react-native';
@@ -176,7 +175,8 @@ export default function App() {
           <View style={styles.iconContainer}>
             {/* THE CLOSE BUTTON */}
             <Pressable style={{ marginLeft: 12 }} onPress={() => setCurrentStoryIndex(null)}>
-              <Close height={28} width={28} fill={"#fff"} stroke={"#fff"} />
+            {/* You can replace it with a close icon */}
+              <Text style={{ color: "#fff" }}>Close</Text>
             </Pressable>
             {/* END OF CLOSE BUTTON */}
           </View>
