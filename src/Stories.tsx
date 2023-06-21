@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     },
     animationBarsContainer: {
         flexDirection: 'row',
-        paddingTop: 12,
+        paddingTop: 8,
         paddingHorizontal: 12,
     },
     seeMoreContainer: {
