@@ -1,6 +1,6 @@
 {
   "name": "rn-story",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Lightweight React Native component for stories like Instagram, Whatsapp and Snapchat.",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
@@ -33,7 +33,10 @@
     "instagram",
     "snapchat"
   ],
-  "repository": "https://github.com/AbdullahAnsarii/rn-story",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AbdullahAnsarii/rn-story.git"
+  },
   "author": "Abdullah Ansari <aa9272137@gmail.com> (https://github.com/AbdullahAnsarii)",
   "license": "MIT",
   "bugs": {
