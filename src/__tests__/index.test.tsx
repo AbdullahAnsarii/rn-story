@@ -67,6 +67,19 @@ describe('Stories', () => {
     expect(onNext).toHaveBeenCalledTimes(1);
   });
 
+  // react-native-web restarts the image load whenever these handlers change
+  // identity, which used to loop the loader forever on web.
+  it('keeps media load callbacks referentially stable across re-renders', () => {
+    const { rerender } = render(<Stories stories={IMAGE_STORIES} />);
+    const before = screen.getByTestId('rn-story-image').props;
+
+    rerender(<Stories stories={IMAGE_STORIES} />);
+    const after = screen.getByTestId('rn-story-image').props;
+
+    expect(after.onLoadStart).toBe(before.onLoadStart);
+    expect(after.onLoadEnd).toBe(before.onLoadEnd);
+  });
+
   it('shows the loader until the media reports it is ready', () => {
     render(<Stories stories={IMAGE_STORIES} />);
     expect(screen.queryByTestId('rn-story-loading')).toBeTruthy();

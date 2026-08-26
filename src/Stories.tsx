@@ -357,6 +357,12 @@ export default function Stories({
     Linking.openURL(url).catch(() => {});
   }, [items]);
 
+  // react-native-web restarts the whole image load when these handlers change
+  // identity (they are effect dependencies there), so inline arrows would put
+  // the loader into an endless start/end loop on web. Keep them stable.
+  const handleMediaLoadStart = useCallback(() => setIsLoading(true), []);
+  const handleMediaLoadEnd = useCallback(() => setIsLoading(false), []);
+
   const handleLongPress = useCallback(() => setIsPaused(true), []);
   // `onPressOut` also fires for an ordinary tap. Setting the same value is a
   // no-op in React, so a tap does not disturb the running animation.
@@ -394,8 +400,8 @@ export default function Stories({
               resizeMode={ResizeMode.COVER}
               shouldPlay={!isPaused}
               isMuted={isMuted}
-              onReadyForDisplay={() => setIsLoading(false)}
-              onLoadStart={() => setIsLoading(true)}
+              onReadyForDisplay={handleMediaLoadEnd}
+              onLoadStart={handleMediaLoadStart}
               onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
               style={StyleSheet.absoluteFill}
               testID="rn-story-video"
@@ -404,8 +410,8 @@ export default function Stories({
           {activeStory && !isVideo ? (
             <Image
               key={mediaKey}
-              onLoadStart={() => setIsLoading(true)}
-              onLoadEnd={() => setIsLoading(false)}
+              onLoadStart={handleMediaLoadStart}
+              onLoadEnd={handleMediaLoadEnd}
               source={{ uri: activeStory.media }}
               resizeMode="cover"
               style={StyleSheet.absoluteFill}
