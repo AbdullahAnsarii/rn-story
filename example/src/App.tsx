@@ -1,5 +1,5 @@
 import * as React from 'react';
-import Close from 'example/assets/Close';
+import Close from '../assets/Close';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -20,37 +20,37 @@ const { width } = Dimensions.get('window');
 
 const PROFILES: Profile[] = [
   {
-    profileImage: 'https://shorturl.at/fhUV1',
+    profileImage: 'https://picsum.photos/id/64/200/200',
     profileName: 'Abdullah Ansari',
     id: 1,
     stories: [
       {
-        media: 'https://shorturl.at/mpwQ1',
+        media: 'https://picsum.photos/id/1015/1080/1920',
         mediaType: 'image',
         seeMoreUrl: 'https://abdullahansari.me',
       },
       {
-        media: 'https://shorturl.at/jpJ58',
+        media: 'https://picsum.photos/id/1016/1080/1920',
         mediaType: 'image',
         duration: 12000,
       },
       {
-        media: 'https://shorturl.at/ckvyT',
+        media: 'https://picsum.photos/id/1018/1080/1920',
         mediaType: 'image',
       },
     ],
   },
   {
-    profileImage: 'https://shorturl.at/fhUV1',
+    profileImage: 'https://picsum.photos/id/1025/200/200',
     profileName: 'Abdullah Ansari 2',
     id: 2,
     stories: [
       {
-        media: 'https://shorturl.at/DEKP1',
+        media: 'https://download.samplelib.com/mp4/sample-5s.mp4',
         mediaType: 'video',
       },
       {
-        media: 'https://shorturl.at/pJZ28',
+        media: 'https://picsum.photos/id/1025/1080/1920',
         mediaType: 'image',
       },
     ],

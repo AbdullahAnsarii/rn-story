@@ -1,150 +1,215 @@
-<h1 style="margin: 0" align="center">rn-story</h1>
+<h1 align="center">rn-story</h1>
 
-### Lightweight React Native component for stories like Instagram, Whatsapp and Snapchat.
-<br>
+<p align="center">
+  Instagram-style stories for React Native and Expo — images, videos, progress bars, and tap gestures in one lightweight component.
+</p>
 
-<img  height="600"  src="https://firebasestorage.googleapis.com/v0/b/fir-demo-48533.appspot.com/o/rn-story-preview.png?alt=media&token=5a0aada6-f69f-4a06-8f6f-cf7ffef79ded"  alt="Demo screenshot"/>
+<p align="center">
+  <a href="https://www.npmjs.com/package/rn-story"><img src="https://img.shields.io/npm/v/rn-story" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/rn-story"><img src="https://img.shields.io/npm/dm/rn-story" alt="npm downloads" /></a>
+  <a href="https://github.com/AbdullahAnsarii/rn-story/actions/workflows/ci.yml"><img src="https://github.com/AbdullahAnsarii/rn-story/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI status" /></a>
+  <a href="https://www.npmjs.com/package/rn-story"><img src="https://img.shields.io/npm/types/rn-story" alt="TypeScript types" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/npm/l/rn-story" alt="license" /></a>
+</p>
 
----
+<p align="center">
+  <img height="600" src="docs/demo.jpg" alt="rn-story demo — a full screen story with progress bars, avatar header and See More button" />
+</p>
 
-  
+## Features
+
+- 📸 **Image and video stories** with an animated progress bar per story
+- 👆 **Familiar gestures** — tap right for next, tap left for previous, long-press to pause
+- 🔗 **"See More" link** support per story, opened via `Linking`
+- 🧩 **Custom header** (avatar, close button, gradient) and custom loading component
+- 🔊 **Video volume and mute** controls
+- 📞 **Navigation callbacks** for building multi-profile story flows
+- 🛡️ **TypeScript-first** — all props and the `Story` object are fully typed
+- 🪶 **Lightweight** — one component, no native code of its own, works with Expo out of the box
 
 ## Installation
 
-`expo-av` is a peer dependency, so install it alongside the package with the
-version that matches your Expo SDK:
+[`expo-av`](https://docs.expo.dev/versions/latest/sdk/av/) is a peer dependency. Install it alongside the package so the version matches your Expo SDK:
 
 ```sh
 npx expo install rn-story expo-av
 ```
 
-Not using Expo? Install both with your package manager and make sure `expo-av`
-is [configured for bare React Native](https://docs.expo.dev/bare/installing-expo-modules/):
+<details>
+<summary>Bare React Native (without Expo)</summary>
+
+Install both packages with your package manager, and make sure [Expo modules are configured](https://docs.expo.dev/bare/installing-expo-modules/) in your project:
 
 ```sh
 npm install rn-story expo-av
 ```
 
-## Features
-- Typescript support.
-- Expo support. 
-- Video stories support.
-- Next and previous callbacks.
-- mute/unmute support.
-- Video volume modification support.
-- See more url support.
-- Custom header support.
-- Support for custom loading component.
-  
+</details>
 
-## Usage
+## Quick start
 
-  
+```tsx
+import Stories from 'rn-story';
+import type { Story } from 'rn-story';
 
-  
+const stories: Story[] = [
+  { media: 'https://example.com/photo.jpg', mediaType: 'image' },
+  { media: 'https://example.com/clip.mp4', mediaType: 'video' },
+];
 
-```jsx
-import  Stories  from  'rn-story';
-
-//minimal usage
-
-<Stories  stories={stories}  />
-```
-[Full example](#example)
-
-The `Story` and `StoriesProps` types are exported for Typescript users:
-
-```ts
-import type { Story, StoriesProps } from 'rn-story';
+export default function MyStories() {
+  return <Stories stories={stories} />;
+}
 ```
 
+In a real app you will usually open the viewer from a pressable avatar and close it from a callback:
 
-  
-  
+```tsx
+import { useState } from 'react';
+import Stories from 'rn-story';
 
+export default function App() {
+  const [open, setOpen] = useState(false);
 
-## Props
+  return (
+    <>
+      {/* ...your avatar rail that calls setOpen(true)... */}
+      {open && (
+        <Stories
+          stories={stories}
+          onAllStoriesEnd={() => setOpen(false)}
+          onPreviousFirstStory={() => setOpen(false)}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+```
 
-| Property               | Type            | Default                   | Description                                                                                                                                                         |
-| ---------------------- | --------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `stories`              | Story[] | `required`                | An array of story objects [Story object](#story-object) 
-| **Optional props**          | ⭐️             | ⭐️                 | ⭐️                                                                                                                                                                 |                                                                                   
-| `currentIndex`         | number        | `0`                      | Set the current story index. Updating it after mount jumps to that story.                                                                                             |
-| `isMuted`      | boolean          | `false`                      | Switch to mute video story                                                                                                                    |
-| `videoVolume`   | number         | `1.0`                     | Control the volume of video       |
-| `isAnimationBarRounded`               | boolean       | `true`                                                                                                     | Switch to changed the shape from rectangular animation bar to rounded
-| `animationBarHeight`               | number       | `2` | Modify the height of animation bar |
-| `animationBarColor` | string          | `#fff`         | Modify the color of animation bar                                                                                                                |
-| `seeMoreText`                | string   | "View Details"                      | Change the text of **See More** button, *required `seeMoreUrl` to be set is Story Object.*                                                                                                         |
-| `seeMoreStyles`               | ViewStyle   | `{}`    | Override the styles of **See More** button container, *required `seeMoreUrl` to be set is Story Object.*                                                                                                          |
-| `seeMoreTextStyles`          | TextStyle          | `{}`                  | Override the styles of **See More** button text, *required `seeMoreUrl` to be set is Story Object.*                                                                                                                 |
-| `onPrevious`         | () => void        | -                         | Callback when the user taps/press to go back to the previous story. Not called on the first story — see `onPreviousFirstStory`.                                       |
-| `onPreviousFirstStory`          | () => void        | -                         | Callback when the user taps/press to go back to the previous story but you are on the first story, i.e there are no more stories to go back (suitable for closing story view or update index to show previous profile story)                                                                                                                                        |
-| `onNext`               | () => void        | -                         | Callback when the user taps/press to proceed to the next story. Not called on the last story — see `onAllStoriesEnd`.                                                 |
-| `onAllStoriesEnd`           | () => void        | -                         | Callback when the user taps/press to proceed to next story but you are on the last story, i.e there are no more stories to go forward (suitable for closing story view or update index to show next story) |
-| `onClose`           | () => void        | -                         | Callback for the Android hardware back button. Without it the back button does nothing while the story view is open. |
-| `loadingComponent`           | ReactNode        | `<ActivityIndicator />`                         |  Override default loading component with custom loading component |
+See the [full example](#full-example) below for a complete multi-profile setup with avatars, headers, and viewed indicators.
 
+## Gestures
+
+| Gesture | Action |
+| --- | --- |
+| Tap right half | Next story (`onNext`), or `onAllStoriesEnd` on the last story |
+| Tap left half | Previous story (`onPrevious`), or `onPreviousFirstStory` on the first story |
+| Long-press | Pause the story and its progress bar |
+| Release | Resume from where it left off |
+| Android back button | Calls `onClose` |
+
+## API
+
+### `<Stories />` props
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `stories` | `Story[]` | **required** | The [story objects](#story-object) to play, in order. |
+| `currentIndex` | `number` | `0` | Story to start from. Updating it after mount jumps to that story. |
+| `onNext` | `() => void` | — | Called when the user moves to the next story. Not called on the last story. |
+| `onPrevious` | `() => void` | — | Called when the user moves to the previous story. Not called on the first story. |
+| `onAllStoriesEnd` | `() => void` | — | Called on the last story when the user tries to go forward (or the story finishes). Close the viewer or show the next profile here. |
+| `onPreviousFirstStory` | `() => void` | — | Called on the first story when the user tries to go back. Close the viewer or show the previous profile here. |
+| `onClose` | `() => void` | — | Called by the Android hardware back button. Without it the back button does nothing while the viewer is open. |
+| `isMuted` | `boolean` | `false` | Mute video stories. |
+| `videoVolume` | `number` | `1.0` | Volume of video stories, `0.0`–`1.0`. |
+| `isAnimationBarRounded` | `boolean` | `true` | Rounded ends on the progress bars. |
+| `animationBarHeight` | `number` | `2` | Height of the progress bars. |
+| `animationBarColor` | `string` | `"#fff"` | Fill color of the progress bars. |
+| `seeMoreText` | `string` | `"View Details"` | Label of the **See More** button (shown when the story has a `seeMoreUrl`). |
+| `seeMoreStyles` | `ViewStyle` | — | Style overrides for the **See More** button container. |
+| `seeMoreTextStyles` | `TextStyle` | — | Style overrides for the **See More** button text. |
+| `loadingComponent` | `ReactNode` | `<ActivityIndicator />` | Rendered while the current story's media is loading. |
+
+> **Note:** an empty `stories` array renders nothing, so it is safe to render `<Stories />` while your data is still loading.
 
 ### Story object
 
-A simple 'story object' needs to be passed in the `stories` array.
+| Property | Type | Description |
+| --- | --- | --- |
+| `media` | `string` | URL of the image or video. |
+| `mediaType` | `'image' \| 'video'` | Type of the story. |
+| `duration?` | `number` | How long the story stays on screen, in milliseconds. Defaults to `3000` for images and to the video's own length for videos. |
+| `header?` | `ReactNode` | Rendered just below the progress bars — ideal for an avatar, username, close button, or gradient. |
+| `seeMoreUrl?` | `string` | Shows a **See More** button at the bottom that opens this URL. |
 
-| Property           | Type | Description                                                                                                              |
-| ------------------ | ---- | ------------------------------------------------------------------------------------------------------------------------ |
-| `media`              | string | The url of the resource, be it image or video.                                                                         |
-| `mediaType`             | `'image'` \| `'video'` | Type of the story. `'video'` is necessary for a video story.                                    |
-| `duration?`         | number | Optional. How long the story stays on screen, in milliseconds. Defaults to `3000` for images, and to the video's own duration for videos. |
-| `header?`         | ReactNode | Optional. Header component which will be displayed just below animation bars, ideal for avatar, close button and linear gradient. |
-| `seeMoreUrl?`          | string | Optional. Shows the See More button at the bottom and adds the url for that button as well.                            |
+### TypeScript
 
-  
-## Example
+All types are exported:
 
-### Just copy and paste the following code.
+```ts
+import type { Story, StoriesProps, StoryMediaType } from 'rn-story';
+```
 
- ```jsx
+## Full example
+
+A complete multi-profile setup — an avatar rail, per-profile stories, a header with a close button, and viewed indicators.
+
+<details>
+<summary>Show the full example</summary>
+
+```tsx
 import { LinearGradient } from 'expo-linear-gradient';
 import * as React from 'react';
 import { useCallback, useMemo, useState } from 'react';
-import { StyleSheet, SafeAreaView, Pressable, View, Image, Text, Dimensions, StatusBar, ScrollView, Platform } from 'react-native';
+import {
+  StyleSheet,
+  SafeAreaView,
+  Pressable,
+  View,
+  Image,
+  Text,
+  Dimensions,
+  StatusBar,
+  ScrollView,
+  Platform,
+} from 'react-native';
 import Stories from 'rn-story';
 import type { Story } from 'rn-story';
+
 const { width } = Dimensions.get('window');
+
+type Profile = {
+  profileName: string;
+  profileImage: string;
+  id: string | number;
+  stories: Story[];
+};
 
 const PROFILES: Profile[] = [
   {
-    profileImage: 'https://shorturl.at/fhUV1',
+    profileImage: 'https://picsum.photos/id/64/200/200',
     profileName: 'Abdullah Ansari',
     id: 1,
     stories: [
       {
-        media: 'https://shorturl.at/mpwQ1',
+        media: 'https://picsum.photos/id/1015/1080/1920',
         mediaType: 'image',
         seeMoreUrl: 'https://abdullahansari.me',
       },
       {
-        media: 'https://shorturl.at/jpJ58',
+        media: 'https://picsum.photos/id/1016/1080/1920',
         mediaType: 'image',
         duration: 12000,
       },
       {
-        media: 'https://shorturl.at/ckvyT',
+        media: 'https://picsum.photos/id/1018/1080/1920',
         mediaType: 'image',
       },
     ],
   },
   {
-    profileImage: 'https://shorturl.at/fhUV1',
+    profileImage: 'https://picsum.photos/id/1025/200/200',
     profileName: 'Abdullah Ansari 2',
     id: 2,
     stories: [
       {
-        media: 'https://shorturl.at/DEKP1',
+        media: 'https://download.samplelib.com/mp4/sample-5s.mp4',
         mediaType: 'video',
       },
       {
-        media: 'https://shorturl.at/pJZ28',
+        media: 'https://picsum.photos/id/1025/1080/1920',
         mediaType: 'image',
       },
     ],
@@ -187,7 +252,6 @@ export default function App() {
     }
     const header = (
       <View style={[styles.avatarAndIconsContainer]}>
-        {/* THE AVATAR AND USERNAME  */}
         <View style={[styles.avatarAndIconsContainer]}>
           <LinearGradient
             colors={['rgba(0,0,0,0.25)', 'transparent']}
@@ -207,15 +271,12 @@ export default function App() {
               </Text>
             </View>
           </View>
-          {/* END OF THE AVATAR AND USERNAME */}
         </View>
         <View style={styles.iconContainer}>
-          {/* THE CLOSE BUTTON */}
           <Pressable style={styles.closeButton} onPress={close}>
-            {/* You can replace it with a close icon */}
+            {/* You can replace this with a close icon */}
             <Text style={{ color: '#fff' }}>Close</Text>
           </Pressable>
-          {/* END OF CLOSE BUTTON */}
         </View>
       </View>
     );
@@ -226,7 +287,7 @@ export default function App() {
   return (
     <SafeAreaView>
       <StatusBar />
-      {/* you can also use FlatList here */}
+      {/* You can also use a FlatList here */}
       <ScrollView horizontal>
         {PROFILES.map((item, index) => (
           <Pressable
@@ -255,18 +316,18 @@ export default function App() {
       {profile && (
         <Stories
           stories={stories}
-          //called when user taps on next
+          // Called when the user taps to the next story
           onNext={() => console.log('next')}
-          //called when user taps on previous
+          // Called when the user taps back to the previous story
           onPrevious={() => console.log('previous')}
-          // no more stories for this profile, so move on to the next one
+          // No more stories for this profile, so move on to the next one
           onAllStoriesEnd={showNextProfile}
-          // no more stories to go back to, so go back a profile
+          // No more stories to go back to, so go back a profile
           onPreviousFirstStory={showPreviousProfile}
-          // android hardware back button
+          // Android hardware back button
           onClose={close}
-          //custom loading component
-          loadingComponent={<Text style={styles.loading}>Custom Loading...</Text>}
+          // Custom loading component
+          loadingComponent={<Text style={styles.loading}>Loading…</Text>}
         />
       )}
     </SafeAreaView>
@@ -336,44 +397,39 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 });
+```
 
-export type Profile = {
-  profileName: string;
-  profileImage: string;
-  id: string | number;
-  stories: Story[];
-};
- ```
-[Full soure code for the example available here](https://github.com/AbdullahAnsarii/rn-story/tree/master/example)
- 
+</details>
 
-## Upgrading to 2.0
+The runnable version lives in [`example/`](https://github.com/AbdullahAnsarii/rn-story/tree/master/example).
 
-- **`expo-av` is now a peer dependency.** Install it yourself, ideally with
-  `npx expo install expo-av` so the version matches your Expo SDK. Previously
-  the package pinned its own copy, which clashed with newer SDKs.
-- **`onNext` and `onPrevious` no longer fire at the ends of the list.** On the
-  last story only `onAllStoriesEnd` fires, and on the first story only
-  `onPreviousFirstStory` fires. If you relied on both firing together, move that
-  logic into the end callbacks.
-- **The default loading component is now an `ActivityIndicator`** instead of the
-  text "Loading...". Pass `loadingComponent` to restore your own.
-- **An empty `stories` array now renders nothing** instead of a full screen
-  loader. With no story there is no header to close from, so the modal had no
-  way out. Render your own placeholder while you are still fetching.
-- `header` and `loadingComponent` are typed as `ReactNode` rather than
-  `JSX.Element`, so strings and arrays are accepted too.
+## Upgrading from 1.x
 
-## Upcoming Features
-- Support for custom see more component.
+Version 2.0 fixed the published build (it previously crashed with `ReferenceError: React is not defined` outside Metro) and a number of playback bugs. A few behaviors changed along the way:
+
+| Change | What to do |
+| --- | --- |
+| `expo-av` is now a **peer dependency** | Install it yourself: `npx expo install expo-av`. Previously the package pinned its own copy, which clashed with newer Expo SDKs. |
+| `onNext` / `onPrevious` no longer fire at the ends of the list | On the last story only `onAllStoriesEnd` fires; on the first story only `onPreviousFirstStory` fires. Move any end-of-list logic into those callbacks. |
+| Default loader is an `ActivityIndicator` | It was the text "Loading...". Pass `loadingComponent` to customize it. |
+| Empty `stories` renders nothing | It used to render a full-screen loader with no way out. Render your own placeholder while fetching. |
+| `header` / `loadingComponent` are typed as `ReactNode` | Strings and arrays are accepted too; existing `JSX.Element` values keep working. |
+
+New in 2.0: `stories` and `currentIndex` are reactive after mount (swap in the next profile's stories without remounting), an `onClose` prop for the Android back button, and exported `Story` / `StoriesProps` / `StoryMediaType` types.
+
+## Roadmap
+
+- Custom **See More** component
 - SafeAreaView toggle
 
 ## Contributing
-See the [contributing guide](CONTRIBUTING.md) to learn how to contribute to the repository and the development workflow.
+
+Contributions are welcome! See the [contributing guide](CONTRIBUTING.md) for the development workflow. Found a bug? [Open an issue](https://github.com/AbdullahAnsarii/rn-story/issues).
 
 ## License
-MIT © [AbdullahAnsarii](https://github.com/AbdullahAnsarii)
 
-  
+[MIT](./LICENSE) © [Abdullah Ansari](https://github.com/AbdullahAnsarii)
 
-Check out more projects at https://abdullahansari.me
+---
+
+<p align="center">Check out more projects at <a href="https://abdullahansari.me">abdullahansari.me</a></p>
