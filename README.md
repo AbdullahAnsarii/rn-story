@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img height="600" src="https://raw.githubusercontent.com/AbdullahAnsarii/rn-story/master/docs/demo.jpg" alt="rn-story demo — a full screen story with progress bars, avatar header and See More button" />
+  <img height="600" src="docs/demo.jpg" alt="rn-story demo — a full screen story with progress bars, avatar header and See More button" />
 </p>
 
 ## Features
