@@ -1,5 +1,6 @@
-import Svg, { Path } from "react-native-svg";
-const Close = (props:any) => (
+import * as React from 'react';
+import Svg, { Path } from 'react-native-svg';
+const Close = (props: any) => (
   <Svg
     xmlns="http://www.w3.org/2000/svg"
     className="ionicon"
@@ -7,9 +8,9 @@ const Close = (props:any) => (
     {...props}
   >
     <Path
-     {...props}
+      {...props}
       fill="none"
-    //   stroke="currentColor"
+      //   stroke="currentColor"
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth={32}
