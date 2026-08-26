@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img height="600" src="https://firebasestorage.googleapis.com/v0/b/fir-demo-48533.appspot.com/o/rn-story-preview.png?alt=media&token=5a0aada6-f69f-4a06-8f6f-cf7ffef79ded" alt="rn-story demo — a full screen story with progress bars, avatar header and See More button" />
+  <img height="600" src="https://raw.githubusercontent.com/AbdullahAnsarii/rn-story/master/docs/demo.jpg" alt="rn-story demo — a full screen story with progress bars, avatar header and See More button" />
 </p>
 
 ## Features
@@ -179,37 +179,37 @@ type Profile = {
 
 const PROFILES: Profile[] = [
   {
-    profileImage: 'https://shorturl.at/fhUV1',
+    profileImage: 'https://picsum.photos/id/64/200/200',
     profileName: 'Abdullah Ansari',
     id: 1,
     stories: [
       {
-        media: 'https://shorturl.at/mpwQ1',
+        media: 'https://picsum.photos/id/1015/1080/1920',
         mediaType: 'image',
         seeMoreUrl: 'https://abdullahansari.me',
       },
       {
-        media: 'https://shorturl.at/jpJ58',
+        media: 'https://picsum.photos/id/1016/1080/1920',
         mediaType: 'image',
         duration: 12000,
       },
       {
-        media: 'https://shorturl.at/ckvyT',
+        media: 'https://picsum.photos/id/1018/1080/1920',
         mediaType: 'image',
       },
     ],
   },
   {
-    profileImage: 'https://shorturl.at/fhUV1',
+    profileImage: 'https://picsum.photos/id/1025/200/200',
     profileName: 'Abdullah Ansari 2',
     id: 2,
     stories: [
       {
-        media: 'https://shorturl.at/DEKP1',
+        media: 'https://download.samplelib.com/mp4/sample-5s.mp4',
         mediaType: 'video',
       },
       {
-        media: 'https://shorturl.at/pJZ28',
+        media: 'https://picsum.photos/id/1025/1080/1920',
         mediaType: 'image',
       },
     ],
