@@ -18,7 +18,7 @@
 
 ## Try it in your browser
 
-▶️ **[Open the live demo on Expo Snack](https://snack.expo.dev/wLC0vkqEv8pH2XE2ixMdT)** — tap through image and video stories without installing anything. The demo source lives in [`snack/`](snack/App.tsx).
+▶️ **[Open the live demo on Expo Snack](https://snack.expo.dev/@abdullahansari/rn-story-demo)** — tap through image and video stories without installing anything. The demo source lives in [`snack/`](snack/App.tsx).
 
 ## Features
 
