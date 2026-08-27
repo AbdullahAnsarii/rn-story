@@ -48,3 +48,16 @@ jobs:
 
       - name: Build package
         run: yarn prepack
+
+      # The entry points package.json declares must exist exactly where it
+      # says, and nothing may leak into the type output and nest it (a stray
+      # directory in the build project once shifted everything under
+      # lib/typescript/src/, which would have shipped broken types).
+      - name: Verify build output layout
+        run: |
+          test -f lib/commonjs/index.js
+          test -f lib/module/index.js
+          test -f "$(node -p "require('./package.json').types")"
+          test ! -e lib/typescript/src
+          test ! -e lib/typescript/snack
+          echo "build output layout OK"
