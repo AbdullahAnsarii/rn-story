@@ -51,7 +51,8 @@ const PROFILES: Profile[] = [
     profileImage: 'https://picsum.photos/id/1025/200/200',
     stories: [
       {
-        media: 'https://raw.githubusercontent.com/AbdullahAnsarii/rn-story/master/docs/demo.mp4',
+        media:
+          'https://raw.githubusercontent.com/AbdullahAnsarii/rn-story/master/docs/demo.mp4',
         mediaType: 'video',
       },
       {

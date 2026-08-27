@@ -46,7 +46,8 @@ const PROFILES: Profile[] = [
     id: 2,
     stories: [
       {
-        media: 'https://raw.githubusercontent.com/AbdullahAnsarii/rn-story/master/docs/demo.mp4',
+        media:
+          'https://raw.githubusercontent.com/AbdullahAnsarii/rn-story/master/docs/demo.mp4',
         mediaType: 'video',
       },
       {
