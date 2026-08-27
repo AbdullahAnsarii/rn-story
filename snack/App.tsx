@@ -5,8 +5,8 @@ import * as React from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import {
   Image,
+  Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -109,7 +109,7 @@ export default function App() {
   }, [profile, close]);
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <View style={styles.screen}>
       <StatusBar barStyle="dark-content" />
       <Text style={styles.title}>rn-story</Text>
       <Text style={styles.subtitle}>Tap an avatar to open its stories</Text>
@@ -145,7 +145,7 @@ export default function App() {
           onClose={close}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -153,6 +153,7 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: '#fff',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44,
   },
   title: {
     fontSize: 28,
