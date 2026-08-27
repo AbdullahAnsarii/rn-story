@@ -2,7 +2,7 @@
 
 Live demo of [rn-story](https://github.com/AbdullahAnsarii/rn-story) — Instagram-style stories for React Native and Expo.
 
-Open it in Snack: https://snack.expo.dev/L7Ho7NR1ApkoKVsssNhM3
+Open it in Snack: https://snack.expo.dev/wLC0vkqEv8pH2XE2ixMdT
 
 Tap an avatar to open its stories. Tap right/left to navigate, long-press to pause. Pinned to Expo SDK 54, the last SDK that ships `expo-av`.
 
