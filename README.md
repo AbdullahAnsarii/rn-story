@@ -16,6 +16,10 @@
   <img height="600" src="docs/demo.jpg" alt="rn-story demo — a full screen story with progress bars, avatar header and See More button" />
 </p>
 
+## Try it in your browser
+
+▶️ **[Open the live demo on Expo Snack](https://snack.expo.dev/@git/github.com/AbdullahAnsarii/rn-story:snack)** — tap through image and video stories without installing anything. The demo source lives in [`snack/`](snack/App.tsx).
+
 ## Features
 
 - 📸 **Image and video stories** with an animated progress bar per story
