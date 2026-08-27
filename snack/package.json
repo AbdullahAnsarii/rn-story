@@ -1,6 +1,7 @@
 {
   "dependencies": {
-    "rn-story": "^2.0.1",
-    "expo-av": "~16.0.8"
+    "expo": "~54.0.0",
+    "expo-av": "~16.0.8",
+    "rn-story": "^2.0.1"
   }
 }
