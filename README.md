@@ -138,6 +138,10 @@ See the [full example](#full-example) below for a complete multi-profile setup w
 | `header?` | `ReactNode` | Rendered just below the progress bars — ideal for an avatar, username, close button, or gradient. |
 | `seeMoreUrl?` | `string` | Shows a **See More** button at the bottom that opens this URL. |
 
+### A note on video hosting
+
+iOS plays videos with AVPlayer, which **requires the server to support HTTP range requests** (`206 Partial Content`) for progressive MP4 playback. Web and Android players are more forgiving, so a video that works everywhere except iOS is almost always hosted on a server that ignores `Range` headers — test with `curl -I -H "Range: bytes=0-1" <url>` and look for a `206`. MP4s encoded with `+faststart` (the `moov` atom up front) also start noticeably faster.
+
 ### TypeScript
 
 All types are exported:
