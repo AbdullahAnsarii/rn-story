@@ -18,7 +18,7 @@
 
 ## Try it in your browser
 
-▶️ **[Open the live demo on Expo Snack](https://snack.expo.dev/@abdullahansari/rn-story-demo)** — tap through image and video stories without installing anything. The demo source lives in [`snack/`](snack/App.tsx).
+▶️ **[Open the live demo on Expo Snack](https://snack.expo.dev/@abdullahansari/rn-story-demo)** — tap through image and video stories without installing anything, using Snack's **in-browser preview** (the Web tab). Running it on a phone through Expo Go is not currently possible: the demo targets Expo SDK 54 — the last SDK that ships `expo-av` — and today's Expo Go only runs the latest SDK. The planned v3 migration to `expo-video` lifts that limit. The demo source lives in [`snack/`](snack/App.tsx).
 
 ## Features
 
