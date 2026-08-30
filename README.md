@@ -124,6 +124,10 @@ See the [full example](#full-example) below for a complete multi-profile setup w
 | `seeMoreText` | `string` | `"View Details"` | Label of the **See More** button (shown when the story has a `seeMoreUrl`). |
 | `seeMoreStyles` | `ViewStyle` | — | Style overrides for the **See More** button container. |
 | `seeMoreTextStyles` | `TextStyle` | — | Style overrides for the **See More** button text. |
+| `onSeeMorePress` | `(story: Story) => void` | — | Called when the built-in **See More** button is pressed, instead of opening `seeMoreUrl` with `Linking` — use it for in-app browsers, bottom sheets, or analytics. |
+| `renderSeeMore` | `(story: Story) => ReactNode` | — | Replaces the built-in **See More** button entirely. Rendered at the bottom of every story with the story being viewed; return `null` to render nothing. The returned node owns its own press handling. |
+| `preloadNext` | `boolean` | `true` | Prefetch the next story's image while the current story plays, so advancing doesn't flash the loader. |
+| `videoDurationTimeout` | `number` | `10000` | How long to wait, in milliseconds, for a video to report its duration before falling back to the default story duration so playback still auto-advances. |
 | `loadingComponent` | `ReactNode` | `<ActivityIndicator />` | Rendered while the current story's media is loading. |
 
 > **Note:** an empty `stories` array renders nothing, so it is safe to render `<Stories />` while your data is still loading.
@@ -427,8 +431,8 @@ New in 2.0: `stories` and `currentIndex` are reactive after mount (swap in the n
 
 ## Roadmap
 
-- Custom **See More** component
 - SafeAreaView toggle
+- v3: migrate video playback from the deprecated `expo-av` to `expo-video`
 
 ## Contributing
 

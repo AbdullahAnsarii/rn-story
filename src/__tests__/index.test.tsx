@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { Linking, Text } from 'react-native';
+import { Image, Linking, Text } from 'react-native';
 import Stories from '../index';
 import type { Story } from '../index';
 
@@ -593,6 +593,175 @@ describe('Stories', () => {
       const video = screen.getByTestId('rn-story-video');
       expect(video.props.isMuted).toBe(true);
       expect(video.props.volume).toBe(0.25);
+    });
+  });
+
+  // https://github.com/AbdullahAnsarii/rn-story/issues/8
+  describe('video duration watchdog', () => {
+    const SILENT_VIDEO: Story[] = [
+      { media: 'https://example.com/silent.mp4', mediaType: 'video' },
+      { media: 'https://example.com/after.jpg', mediaType: 'image' },
+    ];
+
+    it('advances a video that never reports a duration', () => {
+      const onNext = jest.fn();
+      render(<Stories stories={SILENT_VIDEO} onNext={onNext} />);
+
+      // Nothing has been reported: before the watchdog fires, nothing moves.
+      act(() => {
+        jest.advanceTimersByTime(9000);
+      });
+      expect(onNext).not.toHaveBeenCalled();
+      expect(screen.queryByTestId('rn-story-loading')).toBeTruthy();
+
+      // Watchdog at 10s hides the loader and runs the default duration.
+      act(() => {
+        jest.advanceTimersByTime(1200);
+      });
+      expect(screen.queryByTestId('rn-story-loading')).toBeNull();
+      act(() => {
+        jest.advanceTimersByTime(3200);
+      });
+      expect(onNext).toHaveBeenCalledTimes(1);
+    });
+
+    it('respects a custom videoDurationTimeout', () => {
+      const onNext = jest.fn();
+      render(
+        <Stories
+          stories={SILENT_VIDEO}
+          onNext={onNext}
+          videoDurationTimeout={2000}
+        />
+      );
+      act(() => {
+        jest.advanceTimersByTime(2100);
+      });
+      act(() => {
+        jest.advanceTimersByTime(3300);
+      });
+      expect(onNext).toHaveBeenCalledTimes(1);
+    });
+
+    it('is cancelled when the real duration arrives in time', () => {
+      const onNext = jest.fn();
+      render(
+        <Stories
+          stories={SILENT_VIDEO}
+          onNext={onNext}
+          videoDurationTimeout={2000}
+        />
+      );
+      act(() => {
+        screen.getByTestId('rn-story-video').props.onPlaybackStatusUpdate({
+          isLoaded: true,
+          durationMillis: 8000,
+        });
+      });
+
+      // Well past timeout + default duration: the fallback must not have run.
+      act(() => {
+        jest.advanceTimersByTime(6000);
+      });
+      expect(onNext).not.toHaveBeenCalled();
+
+      // The real 8s duration elapses.
+      act(() => {
+        jest.advanceTimersByTime(2500);
+      });
+      expect(onNext).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // https://github.com/AbdullahAnsarii/rn-story/issues/9
+  describe('custom see more', () => {
+    const SEE_MORE_STORY: Story[] = [
+      {
+        media: 'https://example.com/1.jpg',
+        mediaType: 'image',
+        seeMoreUrl: 'https://example.com/details',
+      },
+    ];
+
+    it('onSeeMorePress overrides opening the url', () => {
+      const onSeeMorePress = jest.fn();
+      render(
+        <Stories stories={SEE_MORE_STORY} onSeeMorePress={onSeeMorePress} />
+      );
+      fireEvent.press(screen.getByText('View Details'));
+      expect(onSeeMorePress).toHaveBeenCalledTimes(1);
+      expect(onSeeMorePress.mock.calls[0][0].seeMoreUrl).toBe(
+        'https://example.com/details'
+      );
+      expect(Linking.openURL).not.toHaveBeenCalled();
+    });
+
+    it('renderSeeMore replaces the built-in button', () => {
+      render(
+        <Stories
+          stories={SEE_MORE_STORY}
+          renderSeeMore={(story) => <Text>Custom {story.mediaType}</Text>}
+        />
+      );
+      expect(screen.getByText('Custom image')).toBeTruthy();
+      expect(screen.queryByText('View Details')).toBeNull();
+    });
+
+    it('renderSeeMore shows even for stories without a seeMoreUrl', () => {
+      render(
+        <Stories
+          stories={[{ media: 'https://example.com/1.jpg', mediaType: 'image' }]}
+          renderSeeMore={() => <Text>Swipe up</Text>}
+        />
+      );
+      expect(screen.getByText('Swipe up')).toBeTruthy();
+    });
+
+    it('renderSeeMore returning null renders nothing', () => {
+      render(<Stories stories={SEE_MORE_STORY} renderSeeMore={() => null} />);
+      expect(screen.queryByText('View Details')).toBeNull();
+    });
+  });
+
+  // https://github.com/AbdullahAnsarii/rn-story/issues/7
+  describe('image preloading', () => {
+    beforeEach(() => {
+      if (typeof Image.prefetch !== 'function') {
+        (Image as unknown as { prefetch: unknown }).prefetch = () =>
+          Promise.resolve(true);
+      }
+      jest.spyOn(Image, 'prefetch').mockResolvedValue(true);
+    });
+
+    it('prefetches the next image while the current story plays', () => {
+      render(<Stories stories={IMAGE_STORIES} />);
+      expect(Image.prefetch).toHaveBeenCalledWith(IMAGE_STORIES[1]!.media);
+      expect(Image.prefetch).not.toHaveBeenCalledWith(IMAGE_STORIES[2]!.media);
+    });
+
+    it('prefetches the following image after advancing', () => {
+      render(<Stories stories={IMAGE_STORIES} />);
+      act(() => {
+        tapNext();
+      });
+      expect(Image.prefetch).toHaveBeenCalledWith(IMAGE_STORIES[2]!.media);
+    });
+
+    it('does not prefetch a video', () => {
+      render(
+        <Stories
+          stories={[
+            { media: 'https://example.com/1.jpg', mediaType: 'image' },
+            { media: 'https://example.com/2.mp4', mediaType: 'video' },
+          ]}
+        />
+      );
+      expect(Image.prefetch).not.toHaveBeenCalled();
+    });
+
+    it('can be turned off with preloadNext', () => {
+      render(<Stories stories={IMAGE_STORIES} preloadNext={false} />);
+      expect(Image.prefetch).not.toHaveBeenCalled();
     });
   });
 });

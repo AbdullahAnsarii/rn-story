@@ -122,9 +122,35 @@ export type StoriesProps = {
    */
   seeMoreTextStyles?: TextStyle;
   /**
+   * Called when the built-in **See More** button is pressed, instead of
+   * opening `seeMoreUrl` with `Linking` — use it for in-app browsers, bottom
+   * sheets, or analytics. Receives the story being viewed.
+   */
+  onSeeMorePress?: (story: Story) => void;
+  /**
+   * Replaces the built-in **See More** button entirely. Rendered at the bottom
+   * of every story with the story being viewed; return `null` to render
+   * nothing for a given story. The returned node owns its own press handling.
+   */
+  renderSeeMore?: (story: Story) => ReactNode;
+  /**
+   * Prefetch the next story's image while the current story plays, so
+   * advancing does not flash the loader. Videos are not preloaded.
+   * @default true
+   */
+  preloadNext?: boolean;
+  /**
    * Override default LoadingComponent with custom loading component
    */
   loadingComponent?: ReactNode;
+  /**
+   * How long to wait, in milliseconds, for a video to report its duration
+   * before falling back to the default story duration, so playback can still
+   * auto-advance. Sources that never report one (e.g. live streams) can also
+   * set an explicit `duration` on the story instead.
+   * @default 10000
+   */
+  videoDurationTimeout?: number;
 };
 
 export default function Stories({
@@ -143,7 +169,11 @@ export default function Stories({
   seeMoreText = 'View Details',
   seeMoreStyles,
   seeMoreTextStyles,
+  onSeeMorePress,
+  renderSeeMore,
   loadingComponent,
+  videoDurationTimeout = 10000,
+  preloadNext = true,
 }: StoriesProps) {
   const items = useMemo(
     () => (Array.isArray(stories) ? stories : []),
@@ -284,6 +314,47 @@ export default function Stories({
     ? explicitDuration ?? videoDuration
     : explicitDuration ?? DEFAULT_IMAGE_DURATION;
 
+  // A video that loads without erroring but never reports a duration (or
+  // silently stalls) would otherwise wait forever. After the timeout, stop
+  // waiting: hide the loader and run the bar on the default duration so the
+  // story always auto-advances. A real duration arriving later replaces the
+  // fallback, and navigating away re-arms the watchdog for the next story.
+  useEffect(() => {
+    if (!isVideo || storyDuration != null) {
+      return;
+    }
+    const watchdog = setTimeout(() => {
+      setIsLoading(false);
+      setVideoDuration((duration) => duration ?? DEFAULT_IMAGE_DURATION);
+    }, videoDurationTimeout);
+    return () => clearTimeout(watchdog);
+  }, [
+    isVideo,
+    storyDuration,
+    videoDurationTimeout,
+    current,
+    restartToken,
+    storiesKey,
+  ]);
+
+  // Warm React Native's shared image cache with the next story's image while
+  // the current story plays, so advancing does not flash the loader. Videos
+  // are left to their own buffering.
+  useEffect(() => {
+    if (!preloadNext) {
+      return;
+    }
+    const next = items[current + 1];
+    if (
+      next?.mediaType === 'image' &&
+      next.media &&
+      typeof Image.prefetch === 'function'
+    ) {
+      // Best effort: a failed prefetch just means the loader shows as before.
+      Image.prefetch(next.media)?.catch?.(() => {});
+    }
+  }, [preloadNext, items, current, storiesKey]);
+
   // Drive the progress bar from state rather than from one-shot media
   // callbacks, so it also restarts for a repeated media url and picks back up
   // at the right place after a pause.
@@ -348,14 +419,21 @@ export default function Stories({
   }, []);
 
   const openSeeMore = useCallback(() => {
-    const url = items[currentRef.current]?.seeMoreUrl;
-    if (!url) {
+    const story = items[currentRef.current];
+    if (!story) {
+      return;
+    }
+    if (onSeeMorePress) {
+      onSeeMorePress(story);
+      return;
+    }
+    if (!story.seeMoreUrl) {
       return;
     }
     // Rejects for urls no installed app can handle; swallow it rather than
     // surfacing an unhandled rejection to the app.
-    Linking.openURL(url).catch(() => {});
-  }, [items]);
+    Linking.openURL(story.seeMoreUrl).catch(() => {});
+  }, [items, onSeeMorePress]);
 
   // react-native-web restarts the whole image load when these handlers change
   // identity (they are effect dependencies there), so inline arrows would put
@@ -484,7 +562,11 @@ export default function Stories({
         </SafeAreaView>
 
         {/* SEE MORE COMPONENT */}
-        {activeStory?.seeMoreUrl ? (
+        {renderSeeMore && activeStory ? (
+          <View style={styles.seeMoreContainer} pointerEvents="box-none">
+            {renderSeeMore(activeStory)}
+          </View>
+        ) : activeStory?.seeMoreUrl ? (
           <View style={styles.seeMoreContainer} pointerEvents="box-none">
             <Pressable
               onPress={openSeeMore}
