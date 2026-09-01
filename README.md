@@ -23,13 +23,15 @@
 ## Features
 
 - 📸 **Image and video stories** with an animated progress bar per story
+- ⚡ **Preloads the next story's image** while the current one plays — no loader flash on advance
 - 👆 **Familiar gestures** — tap right for next, tap left for previous, long-press to pause
-- 🔗 **"See More" link** support per story, opened via `Linking`
+- 🔗 **"See More" built in** — one `seeMoreUrl` per story gets a working button (label localizable via `seeMoreText`), or take over with `onSeeMorePress` / `renderSeeMore`
+- ⏱ **Never wedges** — failed videos are skipped, and a duration watchdog keeps playback advancing even when a video never reports its length
 - 🧩 **Custom header** (avatar, close button, gradient) and custom loading component
 - 🔊 **Video volume and mute** controls
 - 📞 **Navigation callbacks** for building multi-profile story flows
 - 🛡️ **TypeScript-first** — all props and the `Story` object are fully typed
-- 🪶 **Lightweight** — one component, no native code of its own, works with Expo out of the box
+- 🪶 **Lightweight** — a ~29 kB package with zero runtime dependencies and no native code of its own
 
 ## Installation
 
