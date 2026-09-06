@@ -11,17 +11,26 @@ import {
   Image,
   Linking,
   Modal,
+  Platform,
   Pressable,
-  SafeAreaView,
+  StatusBar,
   StyleSheet,
   Text,
-  TouchableWithoutFeedback,
   View,
 } from 'react-native';
-import type { TextStyle, ViewStyle } from 'react-native';
-import { ResizeMode, Video } from 'expo-av';
-import type { AVPlaybackStatus } from 'expo-av';
-import type { Story } from './types';
+import type {
+  ImageProps,
+  ModalProps,
+  StatusBarStyle,
+  TextStyle,
+  ViewStyle,
+} from 'react-native';
+import SafeAreaSlot, { SafeAreaRoot, hasSafeAreaContext } from './SafeAreaSlot';
+import usePlayers from './usePlayers';
+import type { ConfigurePlayer } from './usePlayers';
+import VideoStory from './VideoStory';
+import type { StoryVideoProps } from './VideoStory';
+import type { RenderImageProps, SafeAreaInsets, Story } from './types';
 
 /** How long an image story stays on screen when it has no explicit `duration`. */
 const DEFAULT_IMAGE_DURATION = 3000;
@@ -40,6 +49,18 @@ const clampIndex = (index: number, length: number) => {
 /** Identifies the media a story points at, for comparing two story lists. */
 const mediaSignature = (story: Story | undefined) =>
   story ? `${story.mediaType}:${story.media}` : '';
+
+// On Android the viewer draws behind the status bar, which the top slot pads
+// for, and behind the navigation bar when react-native-safe-area-context is
+// there to report its height. Typed loosely: `navigationBarTranslucent` is
+// newer than the oldest React Native this compiles against.
+const platformModalProps: Record<string, unknown> =
+  Platform.OS === 'android'
+    ? {
+        statusBarTranslucent: true,
+        navigationBarTranslucent: hasSafeAreaContext,
+      }
+    : {};
 
 /** A story `duration` is only usable if it is a positive, finite number. */
 const usableDuration = (duration: number | undefined) =>
@@ -84,6 +105,12 @@ export type StoriesProps = {
    */
   onClose?: () => void;
   /**
+   * Called with the index and story whenever a story starts showing: on
+   * mount, on every navigation, and when a new set of stories arrives. Handy
+   * for "viewed" tracking and analytics.
+   */
+  onStoryStart?: (index: number, story: Story) => void;
+  /**
    * Control the volume of video.
    * @default 1.0
    */
@@ -106,6 +133,11 @@ export type StoriesProps = {
    * Modify the color of animation @default "#fff"
    */
   animationBarColor?: string;
+  /**
+   * Color of the unfilled part of the progress bars.
+   * @default "rgba(117, 117, 117, 0.5)"
+   */
+  animationBarBackgroundColor?: string;
   /**
    * Change the text of **See More** button, *required `seeMoreUrl` to be set is Story Object.
    * @default "View Details"
@@ -134,8 +166,9 @@ export type StoriesProps = {
    */
   renderSeeMore?: (story: Story) => ReactNode;
   /**
-   * Prefetch the next story's image while the current story plays, so
-   * advancing does not flash the loader. Videos are not preloaded.
+   * Load the next story while the current one plays, so advancing does not
+   * flash the loader: the next image is prefetched into React Native's image
+   * cache, and the next video gets its own player that buffers ahead of time.
    * @default true
    */
   preloadNext?: boolean;
@@ -147,10 +180,54 @@ export type StoriesProps = {
    * How long to wait, in milliseconds, for a video to report its duration
    * before falling back to the default story duration, so playback can still
    * auto-advance. Sources that never report one (e.g. live streams) can also
-   * set an explicit `duration` on the story instead.
+   * set an explicit `duration` on the story instead. The same timeout caps
+   * how long the loader can stay up for any story.
    * @default 10000
    */
   videoDurationTimeout?: number;
+  /**
+   * Extra props for the built-in `Image`, e.g. `blurRadius`, `fadeDuration`
+   * or `accessibilityLabel`. The source and load handlers are managed for you.
+   */
+  imageProps?: Partial<Omit<ImageProps, 'source'>>;
+  /**
+   * Extra props for expo-video's `VideoView`, e.g. `contentFit: 'contain'`
+   * for landscape clips, or `allowsPictureInPicture`. Native controls are off
+   * and the video covers the screen unless you say otherwise.
+   */
+  videoProps?: StoryVideoProps;
+  /**
+   * Renders image stories with your own component (expo-image,
+   * react-native-fast-image, a blurhash placeholder…) instead of the built-in
+   * `Image`. Spread the given props onto it so the story fills the screen and
+   * the loader and progress bar follow its loading.
+   */
+  renderImage?: (story: Story, props: RenderImageProps) => ReactNode;
+  /**
+   * Called with every video player right after it is created — for the story
+   * on screen and, when `preloadNext` is on, for the one after it — to set
+   * anything expo-video exposes on the player, e.g. `audioMixingMode` or
+   * `staysActiveInBackground`. Mute and volume are already applied.
+   */
+  configurePlayer?: ConfigurePlayer;
+  /**
+   * Distances to keep the progress bars and header clear of the top of the
+   * screen and the See More button clear of the bottom. When not given they
+   * come from react-native-safe-area-context if the app has it, and from
+   * React Native's SafeAreaView otherwise.
+   */
+  safeAreaInsets?: SafeAreaInsets;
+  /**
+   * Extra props for the full screen `Modal` the stories are shown in, e.g.
+   * `animationType` or `statusBarTranslucent`.
+   */
+  modalProps?: Partial<Omit<ModalProps, 'visible' | 'onRequestClose'>>;
+  /**
+   * Status bar icon style while the viewer is open, restored when it closes.
+   * Pass `null` to leave the status bar alone.
+   * @default "light-content"
+   */
+  statusBarStyle?: StatusBarStyle | null;
 };
 
 export default function Stories({
@@ -161,11 +238,13 @@ export default function Stories({
   onNext,
   onAllStoriesEnd,
   onClose,
+  onStoryStart,
   videoVolume = 1.0,
   isMuted = false,
   isAnimationBarRounded = true,
   animationBarHeight = 2,
   animationBarColor = '#fff',
+  animationBarBackgroundColor = 'rgba(117, 117, 117, 0.5)',
   seeMoreText = 'View Details',
   seeMoreStyles,
   seeMoreTextStyles,
@@ -174,6 +253,13 @@ export default function Stories({
   loadingComponent,
   videoDurationTimeout = 10000,
   preloadNext = true,
+  imageProps,
+  videoProps,
+  renderImage,
+  configurePlayer,
+  safeAreaInsets,
+  modalProps,
+  statusBarStyle = 'light-content',
 }: StoriesProps) {
   const items = useMemo(
     () => (Array.isArray(stories) ? stories : []),
@@ -195,6 +281,9 @@ export default function Stories({
   const [isLoading, setIsLoading] = useState(true);
   // Set while the user long-presses, which pauses both video and progress bar.
   const [isPaused, setIsPaused] = useState(false);
+  // Set while a playing video has run out of buffer, which holds the bar so
+  // it does not run ahead of the picture.
+  const [isBuffering, setIsBuffering] = useState(false);
   // Duration reported by the video itself; unknown until it has loaded.
   const [videoDuration, setVideoDuration] = useState<number | undefined>(
     undefined
@@ -207,9 +296,11 @@ export default function Stories({
   const progress = useRef(new Animated.Value(0)).current;
   // Mirror of `progress` so we can resume from where a pause left off.
   const progressValue = useRef(0);
-  // Mirror of `current` so navigation stays correct across rapid taps, where
-  // several handlers can run before React re-renders.
+  // Mirrors of `current` and `restartToken` so navigation stays correct across
+  // rapid taps, where several handlers can run before React re-renders, and
+  // so late media events can be matched against the story now on screen.
   const currentRef = useRef(current);
+  const restartTokenRef = useRef(restartToken);
   const hasMounted = useRef(false);
   // The media on screen as of the last committed render, used to tell a real
   // story swap apart from an unrelated edit elsewhere in the list.
@@ -225,11 +316,14 @@ export default function Stories({
   const goTo = useCallback(
     (index: number) => {
       currentRef.current = index;
+      restartTokenRef.current += 1;
       progressValue.current = 0;
       progress.setValue(0);
       setVideoDuration(undefined);
+      setIsLoading(true);
+      setIsBuffering(false);
       setCurrent(index);
-      setRestartToken((token) => token + 1);
+      setRestartToken(restartTokenRef.current);
     },
     [progress]
   );
@@ -304,6 +398,22 @@ export default function Stories({
     shownMedia.current = mediaSignature(items[currentRef.current]);
   });
 
+  const onStoryStartRef = useRef(onStoryStart);
+  useEffect(() => {
+    onStoryStartRef.current = onStoryStart;
+  }, [onStoryStart]);
+
+  // Every navigation bumps `restartToken`, and so does a swap of the stories,
+  // so this fires exactly once per story shown. Appending stories does not
+  // bump it and therefore does not report the current story a second time.
+  useEffect(() => {
+    const story = items[current];
+    if (story) {
+      onStoryStartRef.current?.(current, story);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, restartToken]);
+
   const activeStory: Story | undefined = items[current];
   const isVideo = activeStory?.mediaType === 'video';
   // A zero or otherwise unusable `duration` falls back rather than stalling the
@@ -314,32 +424,32 @@ export default function Stories({
     ? explicitDuration ?? videoDuration
     : explicitDuration ?? DEFAULT_IMAGE_DURATION;
 
+  // Identifies the story on screen, including replays of the same index.
+  const storyKey = `${current}-${restartToken}`;
+
   // A video that loads without erroring but never reports a duration (or
-  // silently stalls) would otherwise wait forever. After the timeout, stop
-  // waiting: hide the loader and run the bar on the default duration so the
-  // story always auto-advances. A real duration arriving later replaces the
-  // fallback, and navigating away re-arms the watchdog for the next story.
+  // silently stalls), or an image whose load never ends, would otherwise wait
+  // forever. After the timeout, stop waiting: hide the loader and run the bar
+  // on the default duration so the story always auto-advances. A real duration
+  // arriving later replaces the fallback, and navigating away re-arms the
+  // watchdog for the next story.
+  const durationPending = isVideo && storyDuration == null;
   useEffect(() => {
-    if (!isVideo || storyDuration != null) {
+    if (!isLoading && !durationPending) {
       return;
     }
     const watchdog = setTimeout(() => {
       setIsLoading(false);
-      setVideoDuration((duration) => duration ?? DEFAULT_IMAGE_DURATION);
+      if (durationPending) {
+        setVideoDuration((duration) => duration ?? DEFAULT_IMAGE_DURATION);
+      }
     }, videoDurationTimeout);
     return () => clearTimeout(watchdog);
-  }, [
-    isVideo,
-    storyDuration,
-    videoDurationTimeout,
-    current,
-    restartToken,
-    storiesKey,
-  ]);
+  }, [isLoading, durationPending, videoDurationTimeout, storyKey, storiesKey]);
 
   // Warm React Native's shared image cache with the next story's image while
-  // the current story plays, so advancing does not flash the loader. Videos
-  // are left to their own buffering.
+  // the current story plays, so advancing does not flash the loader. The next
+  // video is handled by `usePlayers`, which gives it a player ahead of time.
   useEffect(() => {
     if (!preloadNext) {
       return;
@@ -355,11 +465,26 @@ export default function Stories({
     }
   }, [preloadNext, items, current, storiesKey]);
 
+  const activePlayer = usePlayers({
+    stories: items,
+    current,
+    storyKey,
+    storiesKey,
+    preloadNext,
+    muted: isMuted,
+    volume: videoVolume,
+    configurePlayer,
+  });
+  // The pool catches up with the story on screen one render after a
+  // navigation; until then there is no player to show, only the loader.
+  const player =
+    activePlayer?.storyKey === storyKey ? activePlayer.player : null;
+
   // Drive the progress bar from state rather than from one-shot media
   // callbacks, so it also restarts for a repeated media url and picks back up
   // at the right place after a pause.
   useEffect(() => {
-    if (total === 0 || isLoading || isPaused) {
+    if (total === 0 || isLoading || isPaused || isBuffering) {
       return;
     }
     if (!storyDuration || storyDuration <= 0) {
@@ -394,29 +519,80 @@ export default function Stories({
     total,
     isLoading,
     isPaused,
+    isBuffering,
     storyDuration,
     progress,
   ]);
 
-  const handlePlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
-    if (!status.isLoaded) {
-      if (status.error) {
-        // A story that cannot play must not freeze the whole viewer, so fall
-        // back to the image duration and move on.
-        setIsLoading(false);
-        setVideoDuration((duration) => duration ?? DEFAULT_IMAGE_DURATION);
+  // Video events can arrive after the viewer has already moved on (React
+  // commits navigation asynchronously), so each one names the story it is
+  // about and anything not about the story on screen is dropped.
+  const isCurrentStory = useCallback(
+    (key: string) => key === `${currentRef.current}-${restartTokenRef.current}`,
+    []
+  );
+
+  const handleVideoReady = useCallback(
+    (key: string, durationMs: number | undefined) => {
+      if (!isCurrentStory(key)) {
+        return;
       }
-      return;
-    }
-    // This fires several times a second, so only touch state on real changes.
-    setIsLoading((loading) => (loading ? false : loading));
-    const reported = status.durationMillis;
-    if (typeof reported === 'number' && reported > 0) {
-      setVideoDuration((duration) =>
-        duration === reported ? duration : reported
-      );
-    }
-  }, []);
+      setIsLoading(false);
+      if (durationMs) {
+        // Only touch state on a real change: players revise the duration by
+        // a millisecond or two, and each change re-runs the progress effect.
+        setVideoDuration((duration) =>
+          duration === durationMs ? duration : durationMs
+        );
+      }
+    },
+    [isCurrentStory]
+  );
+
+  const handleVideoError = useCallback(
+    (key: string) => {
+      if (!isCurrentStory(key)) {
+        return;
+      }
+      // A story that cannot play must not freeze the whole viewer, so fall
+      // back to the image duration and move on.
+      setIsLoading(false);
+      setVideoDuration((duration) => duration ?? DEFAULT_IMAGE_DURATION);
+    },
+    [isCurrentStory]
+  );
+
+  const handleVideoBuffering = useCallback(
+    (key: string, buffering: boolean) => {
+      if (isCurrentStory(key)) {
+        setIsBuffering(buffering);
+      }
+    },
+    [isCurrentStory]
+  );
+
+  const handleVideoEnd = useCallback(
+    (key: string) => {
+      if (!isCurrentStory(key)) {
+        return;
+      }
+      // An explicit `duration` is the caller's decision, so the bar keeps
+      // running: a shorter one already cut the clip, a longer one holds its
+      // last frame until time is up.
+      if (usableDuration(items[currentRef.current]?.duration)) {
+        return;
+      }
+      if (progressValue.current >= 1) {
+        return;
+      }
+      // Filling the bar stops the running timer without letting it finish, so
+      // the story ends exactly once, right as the video does.
+      progressValue.current = 1;
+      progress.setValue(1);
+      goNextRef.current();
+    },
+    [isCurrentStory, items, progress]
+  );
 
   const openSeeMore = useCallback(() => {
     const story = items[currentRef.current];
@@ -448,138 +624,169 @@ export default function Stories({
   const handleRequestClose = useCallback(() => onClose?.(), [onClose]);
 
   const barRadius = isAnimationBarRounded ? animationBarHeight / 2 : 0;
-  // Remount the media on every navigation so the load events fire again, even
-  // when two consecutive stories point at the same url.
-  const mediaKey = `${current}-${restartToken}`;
 
   // With nothing to show there is no media to load, no bar to fill and no
   // header to close from, so a full screen modal here would simply trap the
   // user. Render the stories once the caller actually has some.
-  if (total === 0) {
+  if (total === 0 || !activeStory) {
     return null;
   }
+
+  const imageSource = activeStory.headers
+    ? { uri: activeStory.media, headers: activeStory.headers }
+    : { uri: activeStory.media };
+
+  const seeMore = renderSeeMore ? (
+    renderSeeMore(activeStory)
+  ) : activeStory.seeMoreUrl ? (
+    <Pressable
+      onPress={openSeeMore}
+      style={[styles.seeMore, seeMoreStyles]}
+      accessibilityRole="link"
+    >
+      <Text style={[styles.seeMoreText, seeMoreTextStyles]}>{seeMoreText}</Text>
+    </Pressable>
+  ) : null;
 
   return (
     <Modal
       animationType="fade"
       transparent={false}
+      supportedOrientations={['portrait', 'landscape']}
+      {...platformModalProps}
+      {...modalProps}
       visible={true}
       onRequestClose={handleRequestClose}
-      supportedOrientations={['portrait', 'landscape']}
     >
-      <View style={styles.container}>
-        <View style={StyleSheet.absoluteFill}>
-          {activeStory && isVideo ? (
-            <Video
-              key={mediaKey}
-              source={{ uri: activeStory.media }}
-              rate={1.0}
-              volume={videoVolume}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay={!isPaused}
-              isMuted={isMuted}
-              onReadyForDisplay={handleMediaLoadEnd}
-              onLoadStart={handleMediaLoadStart}
-              onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
-              style={StyleSheet.absoluteFill}
-              testID="rn-story-video"
-            />
+      <SafeAreaRoot>
+        <View style={styles.container}>
+          {statusBarStyle ? <StatusBar barStyle={statusBarStyle} /> : null}
+          {/* Remounted on every navigation so the load events fire again, even
+            when two consecutive stories point at the same url. */}
+          <View style={StyleSheet.absoluteFill} key={storyKey}>
+            {isVideo && player ? (
+              <VideoStory
+                storyKey={storyKey}
+                player={player}
+                paused={isPaused}
+                videoProps={videoProps}
+                onReady={handleVideoReady}
+                onError={handleVideoError}
+                onBufferingChange={handleVideoBuffering}
+                onEnd={handleVideoEnd}
+              />
+            ) : null}
+            {!isVideo && renderImage
+              ? renderImage(activeStory, {
+                  source: imageSource,
+                  style: StyleSheet.absoluteFill,
+                  onLoadStart: handleMediaLoadStart,
+                  onLoadEnd: handleMediaLoadEnd,
+                })
+              : null}
+            {!isVideo && !renderImage ? (
+              <Image
+                resizeMode="cover"
+                {...imageProps}
+                onLoadStart={handleMediaLoadStart}
+                onLoadEnd={handleMediaLoadEnd}
+                source={imageSource}
+                style={[StyleSheet.absoluteFill, imageProps?.style]}
+                testID="rn-story-image"
+              />
+            ) : null}
+          </View>
+
+          {/* LOADER — sits under the header so the close button stays reachable */}
+          {isLoading ? (
+            <View style={styles.loadingContainer} testID="rn-story-loading">
+              {loadingComponent ?? (
+                <ActivityIndicator color="#fff" size="large" />
+              )}
+            </View>
           ) : null}
-          {activeStory && !isVideo ? (
-            <Image
-              key={mediaKey}
-              onLoadStart={handleMediaLoadStart}
-              onLoadEnd={handleMediaLoadEnd}
-              source={{ uri: activeStory.media }}
-              resizeMode="cover"
-              style={StyleSheet.absoluteFill}
-              testID="rn-story-image"
-            />
-          ) : null}
-        </View>
 
-        {/* LOADER — sits under the header so the close button stays reachable */}
-        {isLoading ? (
-          <View style={styles.loadingContainer} testID="rn-story-loading">
-            {loadingComponent ?? (
-              <ActivityIndicator color="#fff" size="large" />
-            )}
-          </View>
-        ) : null}
-
-        {/* HANDLES FOR PREVIOUS AND NEXT PRESS */}
-        <View style={styles.pressRow}>
-          <TouchableWithoutFeedback
-            onLongPress={handleLongPress}
-            delayLongPress={150}
-            onPressOut={handlePressOut}
-            onPress={goPrevious}
-            accessibilityRole="button"
-            accessibilityLabel="Previous story"
-          >
-            <View style={styles.pressZone} testID="rn-story-previous" />
-          </TouchableWithoutFeedback>
-          <TouchableWithoutFeedback
-            onLongPress={handleLongPress}
-            delayLongPress={150}
-            onPressOut={handlePressOut}
-            onPress={goNext}
-            accessibilityRole="button"
-            accessibilityLabel="Next story"
-          >
-            <View style={styles.pressZone} testID="rn-story-next" />
-          </TouchableWithoutFeedback>
-        </View>
-
-        {/* ANIMATION BARS AND HEADER, rendered after the press zones so a
-            header button stays tappable above them */}
-        <SafeAreaView style={styles.topContainer} pointerEvents="box-none">
-          <View style={styles.animationBarsContainer} pointerEvents="box-none">
-            {items.map((item, index) => (
-              // THE BACKGROUND
-              <View
-                key={`${index}-${item?.media ?? ''}`}
-                testID="rn-story-bar"
-                style={[
-                  styles.animationBarBackground,
-                  { height: animationBarHeight, borderRadius: barRadius },
-                ]}
-              >
-                {/* THE ANIMATION OF THE BAR */}
-                <Animated.View
-                  style={{
-                    flex:
-                      index === current ? progress : index < current ? 1 : 0,
-                    height: animationBarHeight,
-                    backgroundColor: animationBarColor,
-                    borderRadius: barRadius,
-                  }}
-                />
-              </View>
-            ))}
-          </View>
-          {activeStory?.header}
-        </SafeAreaView>
-
-        {/* SEE MORE COMPONENT */}
-        {renderSeeMore && activeStory ? (
-          <View style={styles.seeMoreContainer} pointerEvents="box-none">
-            {renderSeeMore(activeStory)}
-          </View>
-        ) : activeStory?.seeMoreUrl ? (
-          <View style={styles.seeMoreContainer} pointerEvents="box-none">
+          {/* HANDLES FOR PREVIOUS AND NEXT PRESS */}
+          <View style={styles.pressRow}>
             <Pressable
-              onPress={openSeeMore}
-              style={[styles.seeMore, seeMoreStyles]}
-              accessibilityRole="link"
-            >
-              <Text style={[styles.seeMoreText, seeMoreTextStyles]}>
-                {seeMoreText}
-              </Text>
-            </Pressable>
+              onLongPress={handleLongPress}
+              delayLongPress={150}
+              onPressOut={handlePressOut}
+              onPress={goPrevious}
+              accessibilityRole="button"
+              accessibilityLabel="Previous story"
+              style={styles.pressZone}
+              testID="rn-story-previous"
+            />
+            <Pressable
+              onLongPress={handleLongPress}
+              delayLongPress={150}
+              onPressOut={handlePressOut}
+              onPress={goNext}
+              accessibilityRole="button"
+              accessibilityLabel="Next story"
+              style={styles.pressZone}
+              testID="rn-story-next"
+            />
           </View>
-        ) : null}
-      </View>
+
+          {/* ANIMATION BARS AND HEADER, rendered after the press zones so a
+            header button stays tappable above them */}
+          <SafeAreaSlot
+            edge="top"
+            inset={safeAreaInsets?.top}
+            style={styles.topContainer}
+            testID="rn-story-top"
+          >
+            <View
+              style={styles.animationBarsContainer}
+              pointerEvents="box-none"
+            >
+              {items.map((item, index) => (
+                // THE BACKGROUND
+                <View
+                  key={`${index}-${item?.media ?? ''}`}
+                  testID="rn-story-bar"
+                  style={[
+                    styles.animationBarBackground,
+                    {
+                      height: animationBarHeight,
+                      borderRadius: barRadius,
+                      backgroundColor: animationBarBackgroundColor,
+                    },
+                  ]}
+                >
+                  {/* THE ANIMATION OF THE BAR */}
+                  <Animated.View
+                    style={{
+                      flex:
+                        index === current ? progress : index < current ? 1 : 0,
+                      height: animationBarHeight,
+                      backgroundColor: animationBarColor,
+                      borderRadius: barRadius,
+                    }}
+                  />
+                </View>
+              ))}
+            </View>
+            {activeStory.header}
+          </SafeAreaSlot>
+
+          {/* SEE MORE COMPONENT */}
+          {seeMore ? (
+            <SafeAreaSlot
+              edge="bottom"
+              inset={safeAreaInsets?.bottom}
+              style={styles.bottomContainer}
+              testID="rn-story-bottom"
+            >
+              <View style={styles.seeMoreContainer} pointerEvents="box-none">
+                {seeMore}
+              </View>
+            </SafeAreaSlot>
+          ) : null}
+        </View>
+      </SafeAreaRoot>
     </Modal>
   );
 }
@@ -616,15 +823,17 @@ const styles = StyleSheet.create({
   animationBarBackground: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: 'rgba(117, 117, 117, 0.5)',
     marginHorizontal: 2,
   },
-  seeMoreContainer: {
+  bottomContainer: {
     position: 'absolute',
-    alignItems: 'center',
     left: 0,
     right: 0,
-    bottom: 32,
+    bottom: 0,
+  },
+  seeMoreContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
   },
   seeMore: {
     backgroundColor: '#000',
