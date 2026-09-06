@@ -1,29 +1,32 @@
 {
-  "name": "example",
+  "name": "rn-story-example",
   "version": "1.0.0",
-  "main": "node_modules/expo/AppEntry.js",
+  "main": "index.ts",
+  "private": true,
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "expo": "~48.0.15",
-    "expo-av": "~13.2.1",
-    "expo-linear-gradient": "^12.1.2",
-    "expo-status-bar": "~1.4.4",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "react-native": "0.71.8",
-    "react-native-svg": "13.4.0",
-    "react-native-web": "~0.18.10"
+    "expo": "~57.0.20",
+    "expo-linear-gradient": "~57.0.1",
+    "expo-status-bar": "~57.0.1",
+    "expo-video": "~57.0.3",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4",
+    "react-native-web": "~0.21.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0",
-    "@expo/webpack-config": "^0.17.2",
-    "babel-loader": "^8.1.0",
-    "babel-plugin-module-resolver": "^4.1.0"
-  },
-  "private": true
+    "@babel/core": "^7.25.2",
+    "@types/react": "~19.2.2",
+    "babel-plugin-module-resolver": "^5.0.2",
+    "escape-string-regexp": "^4.0.0",
+    "typescript": "~6.0.3"
+  }
 }

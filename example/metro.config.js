@@ -1,38 +1,19 @@
 const path = require('path');
-const escape = require('escape-string-regexp');
-const { getDefaultConfig } = require('@expo/metro-config');
-const exclusionList = require('metro-config/src/defaults/exclusionList');
-const pak = require('../package.json');
+const { getDefaultConfig } = require('expo/metro-config');
 
 const root = path.resolve(__dirname, '..');
 
-const modules = Object.keys({
-  ...pak.peerDependencies,
-});
+const config = getDefaultConfig(__dirname);
 
-const defaultConfig = getDefaultConfig(__dirname);
+// The library source lives one directory up and is aliased to `rn-story` by
+// babel.config.js, so Metro has to watch the whole repository.
+config.watchFolders = [root];
 
-module.exports = {
-  ...defaultConfig,
+// Every import — including those made by the library source — must resolve
+// to the example's own node_modules, never to the copies the repository root
+// installs for the library's tests, otherwise two React or expo-modules-core
+// instances end up in one bundle.
+config.resolver.nodeModulesPaths = [path.join(__dirname, 'node_modules')];
+config.resolver.disableHierarchicalLookup = true;
 
-  projectRoot: __dirname,
-  watchFolders: [root],
-
-  // We need to make sure that only one version is loaded for peerDependencies
-  // So we block them at the root, and alias them to the versions in example's node_modules
-  resolver: {
-    ...defaultConfig.resolver,
-
-    blacklistRE: exclusionList(
-      modules.map(
-        (m) =>
-          new RegExp(`^${escape(path.join(root, 'node_modules', m))}\\/.*$`)
-      )
-    ),
-
-    extraNodeModules: modules.reduce((acc, name) => {
-      acc[name] = path.join(__dirname, 'node_modules', name);
-      return acc;
-    }, {}),
-  },
-};
+module.exports = config;
