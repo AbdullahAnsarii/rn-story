@@ -1,8 +1,7 @@
 {
   "dependencies": {
-    "expo": "~57.0.0",
-    "expo-video": "~57.0.3",
-    "react-native-safe-area-context": "~5.7.0",
-    "rn-story": "^3.0.0"
+    "expo": "~54.0.0",
+    "expo-av": "~16.0.8",
+    "rn-story": "2.0.1"
   }
 }

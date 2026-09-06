@@ -18,7 +18,13 @@
 
 ## Try it
 
-▶️ **[Open the live demo on Expo Snack](https://snack.expo.dev/@abdullahansari/rn-story-demo)** — tap through image and video stories in the browser, or scan the QR code with **Expo Go** to run it on your phone. The demo source lives in [`snack/`](snack/App.tsx).
+▶️ **[Open the live demo on Expo Snack](https://snack.expo.dev/@abdullahansari/rn-story-demo)** — tap through image and video stories in the browser. The Snack still runs rn-story 2.x on `expo-av`: Snack's web player cannot load `expo-video` yet and Snack stops at Expo SDK 55, so the demo moves to 3.x as soon as that changes (the API you see is the same). The demo source lives in [`snack/`](snack/App.tsx).
+
+📱 To try **3.0 on your phone**, run the example app in Expo Go:
+
+```sh
+git clone https://github.com/AbdullahAnsarii/rn-story && cd rn-story/example && yarn && npx expo start
+```
 
 ## Features
 
@@ -443,7 +449,7 @@ The runnable version, with SVG icons and a gradient header, lives in [`example/`
 
 ## Upgrading to 3.0
 
-Version 3.0 moves video playback from the deprecated `expo-av` to `expo-video`, which is also what makes the demo run in today's Expo Go. Most apps only need to swap the dependency:
+Version 3.0 moves video playback from the deprecated `expo-av` to `expo-video`, which keeps the package working on Expo SDK 55 and later, where `expo-av` no longer exists. Most apps only need to swap the dependency:
 
 ```sh
 npx expo uninstall expo-av   # if nothing else in your app uses it
