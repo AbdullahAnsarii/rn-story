@@ -1,8 +1,54 @@
 import * as React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { Image, Linking, Text } from 'react-native';
+import {
+  Image,
+  Linking,
+  Modal,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import Stories from '../index';
 import type { Story } from '../index';
+
+/** The stand-in for an expo-video player, see jest.setup.js. */
+type FakePlayer = {
+  source: { uri: string; headers?: Record<string, string> };
+  status: string;
+  duration: number;
+  currentTime: number;
+  playing: boolean;
+  muted: boolean;
+  volume: number;
+  timeUpdateEventInterval: number;
+  released: boolean;
+  calls: string[];
+  emit: (name: string, payload?: unknown) => void;
+  setStatus: (status: string, error?: unknown) => void;
+};
+
+const expoVideo = jest.requireMock('expo-video') as {
+  __players: FakePlayer[];
+  __reset: () => void;
+};
+
+/** Every player created so far, oldest first. */
+const players = () => expoVideo.__players;
+
+/** The player attached to the video view on screen. */
+const currentPlayer = () =>
+  screen.getByTestId('rn-story-video').props.player as FakePlayer;
+
+/** Have a player report that it can play, optionally with its length. */
+const ready = (player: FakePlayer, seconds?: number) => {
+  act(() => {
+    if (seconds != null) {
+      player.duration = seconds;
+    }
+    player.setStatus('readyToPlay');
+  });
+};
 
 const IMAGE_STORIES: Story[] = [
   { media: 'https://example.com/1.jpg', mediaType: 'image' },
@@ -25,6 +71,7 @@ describe('Stories', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    expoVideo.__reset();
   });
 
   afterEach(() => {
@@ -85,6 +132,25 @@ describe('Stories', () => {
     expect(screen.queryByTestId('rn-story-loading')).toBeTruthy();
     finishImageLoad();
     expect(screen.queryByTestId('rn-story-loading')).toBeNull();
+  });
+
+  it('gives up on an image whose load never ends', () => {
+    const onNext = jest.fn();
+    render(<Stories stories={IMAGE_STORIES} onNext={onNext} />);
+
+    act(() => {
+      jest.advanceTimersByTime(9500);
+    });
+    expect(screen.queryByTestId('rn-story-loading')).toBeTruthy();
+
+    act(() => {
+      jest.advanceTimersByTime(1000);
+    });
+    expect(screen.queryByTestId('rn-story-loading')).toBeNull();
+    act(() => {
+      jest.advanceTimersByTime(3200);
+    });
+    expect(onNext).toHaveBeenCalledTimes(1);
   });
 
   it('advances to the next story on a tap of the right half', () => {
@@ -376,6 +442,7 @@ describe('Stories', () => {
     expect(onNext).toHaveBeenCalledTimes(1);
 
     // The second story must load and play again even though the url is the same.
+    expect(screen.queryByTestId('rn-story-loading')).toBeTruthy();
     finishImageLoad();
     expect(screen.queryByTestId('rn-story-loading')).toBeNull();
   });
@@ -435,19 +502,26 @@ describe('Stories', () => {
       { media: 'https://example.com/2.mp4', mediaType: 'video' },
     ];
 
-    const reportStatus = (status: Record<string, unknown>) => {
-      act(() => {
-        screen
-          .getByTestId('rn-story-video')
-          .props.onPlaybackStatusUpdate(status);
-      });
-    };
+    it('plays the current video through an expo-video player', () => {
+      render(<Stories stories={VIDEO_STORIES} />);
 
-    it('waits for the reported duration before advancing', () => {
+      const video = screen.getByTestId('rn-story-video');
+      const player = players()[0]!;
+      expect(video.props.player).toBe(player);
+      expect(player.source).toEqual({ uri: VIDEO_STORIES[0]!.media });
+      expect(player.playing).toBe(true);
+      // Stories never show the platform's own controls or letterboxing.
+      expect(video.props.nativeControls).toBe(false);
+      expect(video.props.contentFit).toBe('cover');
+    });
+
+    it('shows the loader until the player is ready, then runs its duration', () => {
       const onNext = jest.fn();
       render(<Stories stories={VIDEO_STORIES} onNext={onNext} />);
+      expect(screen.queryByTestId('rn-story-loading')).toBeTruthy();
 
-      reportStatus({ isLoaded: true, durationMillis: 5000 });
+      ready(currentPlayer(), 5);
+      expect(screen.queryByTestId('rn-story-loading')).toBeNull();
 
       act(() => {
         jest.advanceTimersByTime(3000);
@@ -464,21 +538,75 @@ describe('Stories', () => {
       const onNext = jest.fn();
       render(<Stories stories={VIDEO_STORIES} onNext={onNext} />);
 
-      // A loaded status with no duration used to set the timer to undefined,
-      // which Animated turned into a 500ms default and skipped the story.
-      reportStatus({ isLoaded: true, durationMillis: undefined });
+      // Ready, but with no length yet: the bar must wait rather than run on
+      // some default and skip the story.
+      ready(currentPlayer(), 0);
+      expect(screen.queryByTestId('rn-story-loading')).toBeNull();
 
       act(() => {
         jest.advanceTimersByTime(4000);
       });
       expect(onNext).not.toHaveBeenCalled();
+      // Meanwhile it keeps asking the player for one.
+      expect(currentPlayer().timeUpdateEventInterval).toBeGreaterThan(0);
+    });
+
+    it('treats playback progress as readiness when no status arrives', () => {
+      const onNext = jest.fn();
+      render(<Stories stories={VIDEO_STORIES} onNext={onNext} />);
+      const player = currentPlayer();
+      // Polling is on from the start, so a missed `canplay` cannot wedge us.
+      expect(player.timeUpdateEventInterval).toBeGreaterThan(0);
+
+      act(() => {
+        player.duration = 3;
+        player.emit('timeUpdate', { currentTime: 0.4 });
+      });
+      expect(screen.queryByTestId('rn-story-loading')).toBeNull();
+      expect(player.timeUpdateEventInterval).toBe(0);
+
+      act(() => {
+        jest.advanceTimersByTime(3500);
+      });
+      expect(onNext).toHaveBeenCalledTimes(1);
+    });
+
+    it('treats the player starting to play as readiness', () => {
+      render(<Stories stories={VIDEO_STORIES} />);
+      const player = currentPlayer();
+      act(() => {
+        player.duration = 3;
+        player.emit('playingChange', { isPlaying: true });
+      });
+      expect(screen.queryByTestId('rn-story-loading')).toBeNull();
+    });
+
+    it('picks up a duration that only arrives once playback is under way', () => {
+      const onNext = jest.fn();
+      render(<Stories stories={VIDEO_STORIES} onNext={onNext} />);
+      const player = currentPlayer();
+      ready(player, 0);
+
+      act(() => {
+        player.duration = 4;
+        player.emit('timeUpdate', { currentTime: 0.5 });
+      });
+      expect(player.timeUpdateEventInterval).toBe(0);
+
+      act(() => {
+        jest.advanceTimersByTime(4500);
+      });
+      expect(onNext).toHaveBeenCalledTimes(1);
     });
 
     it('moves past a video that fails to load', () => {
       const onNext = jest.fn();
       render(<Stories stories={VIDEO_STORIES} onNext={onNext} />);
 
-      reportStatus({ isLoaded: false, error: 'could not decode' });
+      act(() => {
+        currentPlayer().setStatus('error', { message: 'could not decode' });
+      });
+      expect(screen.queryByTestId('rn-story-loading')).toBeNull();
 
       act(() => {
         jest.advanceTimersByTime(3500);
@@ -489,14 +617,14 @@ describe('Stories', () => {
     it('pauses on long press and resumes on release', () => {
       const onNext = jest.fn();
       render(<Stories stories={VIDEO_STORIES} onNext={onNext} />);
-      reportStatus({ isLoaded: true, durationMillis: 4000 });
-
-      expect(screen.getByTestId('rn-story-video').props.shouldPlay).toBe(true);
+      const player = currentPlayer();
+      ready(player, 4);
+      expect(player.playing).toBe(true);
 
       act(() => {
         fireEvent(screen.getByTestId('rn-story-next'), 'longPress');
       });
-      expect(screen.getByTestId('rn-story-video').props.shouldPlay).toBe(false);
+      expect(player.playing).toBe(false);
 
       act(() => {
         jest.advanceTimersByTime(6000);
@@ -506,13 +634,13 @@ describe('Stories', () => {
       act(() => {
         fireEvent(screen.getByTestId('rn-story-next'), 'pressOut');
       });
-      expect(screen.getByTestId('rn-story-video').props.shouldPlay).toBe(true);
+      expect(player.playing).toBe(true);
     });
 
     it('resumes with the time that was left, not the full duration', () => {
       const onNext = jest.fn();
       render(<Stories stories={VIDEO_STORIES} onNext={onNext} />);
-      reportStatus({ isLoaded: true, durationMillis: 4000 });
+      ready(currentPlayer(), 4);
 
       // Watch three quarters of the story, then pause.
       act(() => {
@@ -541,12 +669,12 @@ describe('Stories', () => {
       const { rerender } = render(
         <Stories stories={VIDEO_STORIES} onNext={onNext} />
       );
-      reportStatus({ isLoaded: true, durationMillis: 4000 });
+      ready(currentPlayer(), 4);
 
       act(() => {
         fireEvent(screen.getByTestId('rn-story-next'), 'longPress');
       });
-      expect(screen.getByTestId('rn-story-video').props.shouldPlay).toBe(false);
+      expect(currentPlayer().playing).toBe(false);
 
       rerender(
         <Stories
@@ -558,12 +686,14 @@ describe('Stories', () => {
         />
       );
       // Still held down, so the replacement story must not start playing.
-      expect(screen.getByTestId('rn-story-video').props.shouldPlay).toBe(false);
+      const replacement = currentPlayer();
+      expect(replacement.source.uri).toBe('https://example.com/9.mp4');
+      expect(replacement.playing).toBe(false);
 
       act(() => {
         fireEvent(screen.getByTestId('rn-story-next'), 'pressOut');
       });
-      expect(screen.getByTestId('rn-story-video').props.shouldPlay).toBe(true);
+      expect(replacement.playing).toBe(true);
     });
 
     it('does not re-report the end after a late duration update', () => {
@@ -574,25 +704,359 @@ describe('Stories', () => {
           onAllStoriesEnd={onAllStoriesEnd}
         />
       );
-      reportStatus({ isLoaded: true, durationMillis: 2000 });
+      const player = currentPlayer();
+      ready(player, 2);
       act(() => {
         jest.advanceTimersByTime(2500);
       });
       expect(onAllStoriesEnd).toHaveBeenCalledTimes(1);
 
       // Players routinely revise the duration by a millisecond or two.
-      reportStatus({ isLoaded: true, durationMillis: 2001 });
+      act(() => {
+        player.setStatus('loading');
+      });
+      ready(player, 2.001);
       act(() => {
         jest.advanceTimersByTime(2500);
       });
       expect(onAllStoriesEnd).toHaveBeenCalledTimes(1);
     });
 
-    it('passes mute and volume through to the video', () => {
-      render(<Stories stories={VIDEO_STORIES} isMuted videoVolume={0.25} />);
+    it('ends the story as soon as the video plays to the end', () => {
+      const onNext = jest.fn();
+      render(<Stories stories={VIDEO_STORIES} onNext={onNext} />);
+      const first = currentPlayer();
+      ready(first, 5);
+
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+      act(() => {
+        first.emit('playToEnd');
+      });
+      expect(onNext).toHaveBeenCalledTimes(1);
+      expect(currentPlayer().source.uri).toBe(VIDEO_STORIES[1]!.media);
+
+      // The timer that was running for the first story must not fire as well.
+      act(() => {
+        jest.advanceTimersByTime(5000);
+      });
+      expect(onNext).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets an explicit duration outlast a video that ended early', () => {
+      const onNext = jest.fn();
+      render(
+        <Stories
+          stories={[
+            {
+              media: 'https://example.com/1.mp4',
+              mediaType: 'video',
+              duration: 4000,
+            },
+            ...VIDEO_STORIES,
+          ]}
+          onNext={onNext}
+        />
+      );
+      const player = currentPlayer();
+      ready(player, 2);
+
+      act(() => {
+        jest.advanceTimersByTime(2000);
+      });
+      act(() => {
+        player.emit('playToEnd');
+      });
+      expect(onNext).not.toHaveBeenCalled();
+
+      act(() => {
+        jest.advanceTimersByTime(2500);
+      });
+      expect(onNext).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports the end of the list once when the timer and video end together', () => {
+      const onAllStoriesEnd = jest.fn();
+      render(
+        <Stories
+          stories={[{ media: 'https://example.com/1.mp4', mediaType: 'video' }]}
+          onAllStoriesEnd={onAllStoriesEnd}
+        />
+      );
+      const player = currentPlayer();
+      ready(player, 2);
+
+      act(() => {
+        jest.advanceTimersByTime(2500);
+      });
+      act(() => {
+        player.emit('playToEnd');
+      });
+      expect(onAllStoriesEnd).toHaveBeenCalledTimes(1);
+    });
+
+    it('holds the bar while the video is buffering', () => {
+      const onNext = jest.fn();
+      render(<Stories stories={VIDEO_STORIES} onNext={onNext} />);
+      const player = currentPlayer();
+      ready(player, 4);
+
+      act(() => {
+        jest.advanceTimersByTime(2000);
+      });
+      // The buffer ran dry: the picture stops, so the bar must stop too.
+      act(() => {
+        player.setStatus('loading');
+      });
+      act(() => {
+        jest.advanceTimersByTime(5000);
+      });
+      expect(onNext).not.toHaveBeenCalled();
+
+      ready(player);
+      act(() => {
+        jest.advanceTimersByTime(2500);
+      });
+      expect(onNext).toHaveBeenCalledTimes(1);
+    });
+
+    it('applies mute and volume to every player, including later changes', () => {
+      const { rerender } = render(
+        <Stories stories={VIDEO_STORIES} isMuted videoVolume={0.25} />
+      );
+      expect(players()).toHaveLength(2);
+      players().forEach((player) => {
+        expect(player.muted).toBe(true);
+        expect(player.volume).toBe(0.25);
+      });
+
+      rerender(
+        <Stories stories={VIDEO_STORIES} isMuted={false} videoVolume={1} />
+      );
+      players().forEach((player) => {
+        expect(player.muted).toBe(false);
+        expect(player.volume).toBe(1);
+      });
+    });
+
+    it('forwards videoProps to the video view', () => {
+      render(
+        <Stories
+          stories={VIDEO_STORIES}
+          videoProps={{ contentFit: 'contain', allowsPictureInPicture: true }}
+        />
+      );
       const video = screen.getByTestId('rn-story-video');
-      expect(video.props.isMuted).toBe(true);
-      expect(video.props.volume).toBe(0.25);
+      expect(video.props.contentFit).toBe('contain');
+      expect(video.props.allowsPictureInPicture).toBe(true);
+      expect(video.props.nativeControls).toBe(false);
+    });
+
+    it('sends the story headers with the video request', () => {
+      render(
+        <Stories
+          stories={[
+            {
+              media: 'https://example.com/private.mp4',
+              mediaType: 'video',
+              headers: { Authorization: 'Bearer token' },
+            },
+          ]}
+        />
+      );
+      expect(currentPlayer().source).toEqual({
+        uri: 'https://example.com/private.mp4',
+        headers: { Authorization: 'Bearer token' },
+      });
+    });
+
+    it('lets configurePlayer set up every player, the preloaded one included', () => {
+      const configurePlayer = jest.fn();
+      render(
+        <Stories stories={VIDEO_STORIES} configurePlayer={configurePlayer} />
+      );
+      expect(configurePlayer).toHaveBeenCalledTimes(2);
+      expect(configurePlayer).toHaveBeenNthCalledWith(
+        1,
+        players()[0],
+        VIDEO_STORIES[0]
+      );
+      expect(configurePlayer).toHaveBeenNthCalledWith(
+        2,
+        players()[1],
+        VIDEO_STORIES[1]
+      );
+    });
+
+    it('releases every player when the viewer unmounts', () => {
+      const { unmount } = render(<Stories stories={VIDEO_STORIES} />);
+      expect(players()).toHaveLength(2);
+      unmount();
+      players().forEach((player) => expect(player.released).toBe(true));
+    });
+
+    it('survives StrictMode running its effects twice', () => {
+      // React Native's own Animated components still use legacy lifecycles,
+      // which StrictMode reports; that noise is not what this test is about.
+      jest.spyOn(console, 'error').mockImplementation((message) => {
+        if (!String(message).includes('UNSAFE_')) {
+          throw new Error(String(message));
+        }
+      });
+      const onAllStoriesEnd = jest.fn();
+      render(
+        <React.StrictMode>
+          <Stories
+            stories={[VIDEO_STORIES[0]!]}
+            onAllStoriesEnd={onAllStoriesEnd}
+          />
+        </React.StrictMode>
+      );
+      const player = currentPlayer();
+      expect(player.released).toBe(false);
+      expect(player.playing).toBe(true);
+      expect(players().filter((p) => !p.released)).toHaveLength(1);
+
+      ready(player, 2);
+      act(() => {
+        jest.advanceTimersByTime(2500);
+      });
+      expect(onAllStoriesEnd).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // https://github.com/AbdullahAnsarii/rn-story/issues/7
+  describe('video preloading', () => {
+    const VIDEO_MIXED_FIRST: Story = {
+      media: 'https://example.com/only.mp4',
+      mediaType: 'video',
+    };
+    const MIXED: Story[] = [
+      { media: 'https://example.com/1.jpg', mediaType: 'image' },
+      { media: 'https://example.com/2.mp4', mediaType: 'video' },
+      { media: 'https://example.com/3.mp4', mediaType: 'video' },
+    ];
+
+    it('gives the next video a player while an image is showing', () => {
+      render(<Stories stories={MIXED} />);
+      expect(players()).toHaveLength(1);
+      expect(players()[0]!.source.uri).toBe(MIXED[1]!.media);
+      // Preloading only: nothing has been asked to play.
+      expect(players()[0]!.calls).not.toContain('play');
+    });
+
+    it('hands the preloaded player over when the viewer advances', () => {
+      render(<Stories stories={MIXED} />);
+      const preloaded = players()[0]!;
+      finishImageLoad();
+
+      act(() => {
+        tapNext();
+      });
+      expect(currentPlayer()).toBe(preloaded);
+      expect(preloaded.playing).toBe(true);
+      // And the one after it is now buffering ahead.
+      expect(players()).toHaveLength(2);
+      expect(players()[1]!.source.uri).toBe(MIXED[2]!.media);
+    });
+
+    it('shows a preloaded video that is already ready without a loader', () => {
+      const onAllStoriesEnd = jest.fn();
+      render(
+        <Stories
+          stories={MIXED.slice(0, 2)}
+          onAllStoriesEnd={onAllStoriesEnd}
+        />
+      );
+      const preloaded = players()[0]!;
+      preloaded.status = 'readyToPlay';
+      preloaded.duration = 2;
+      finishImageLoad();
+
+      act(() => {
+        tapNext();
+      });
+      expect(currentPlayer()).toBe(preloaded);
+      expect(screen.queryByTestId('rn-story-loading')).toBeNull();
+
+      act(() => {
+        jest.advanceTimersByTime(2500);
+      });
+      expect(onAllStoriesEnd).toHaveBeenCalledTimes(1);
+    });
+
+    it('releases a player that is neither current nor next any more', () => {
+      render(<Stories stories={MIXED} />);
+      const second = players()[0]!;
+      finishImageLoad();
+
+      act(() => {
+        tapNext();
+      });
+      act(() => {
+        tapNext();
+      });
+      expect(currentPlayer().source.uri).toBe(MIXED[2]!.media);
+      expect(second.released).toBe(true);
+      expect(currentPlayer().released).toBe(false);
+    });
+
+    it('gives a repeated url a fresh player rather than one that already played', () => {
+      const onNext = jest.fn();
+      const repeated: Story[] = [
+        { media: 'https://example.com/same.mp4', mediaType: 'video' },
+        { media: 'https://example.com/same.mp4', mediaType: 'video' },
+      ];
+      render(<Stories stories={repeated} onNext={onNext} />);
+      expect(players()).toHaveLength(1);
+      const first = currentPlayer();
+      ready(first, 2);
+
+      act(() => {
+        first.emit('playToEnd');
+      });
+      expect(onNext).toHaveBeenCalledTimes(1);
+      // The player that just finished is not picked up at its end position.
+      expect(players()).toHaveLength(2);
+      expect(first.released).toBe(true);
+      expect(currentPlayer()).toBe(players()[1]);
+      expect(currentPlayer().playing).toBe(true);
+    });
+
+    it('starts over with a fresh player when the same story is replayed', () => {
+      const onPreviousFirstStory = jest.fn();
+      render(
+        <Stories
+          stories={[VIDEO_MIXED_FIRST]}
+          onPreviousFirstStory={onPreviousFirstStory}
+        />
+      );
+      const first = currentPlayer();
+      ready(first, 2);
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      act(() => {
+        tapPrevious();
+      });
+      expect(onPreviousFirstStory).toHaveBeenCalledTimes(1);
+      expect(first.released).toBe(true);
+      expect(currentPlayer()).not.toBe(first);
+      expect(currentPlayer().source.uri).toBe(VIDEO_MIXED_FIRST.media);
+    });
+
+    it('does not create a player for the next video when preloadNext is off', () => {
+      render(<Stories stories={MIXED} preloadNext={false} />);
+      expect(players()).toHaveLength(0);
+      finishImageLoad();
+
+      act(() => {
+        tapNext();
+      });
+      expect(players()).toHaveLength(1);
+      expect(currentPlayer()).toBe(players()[0]);
     });
   });
 
@@ -652,12 +1116,7 @@ describe('Stories', () => {
           videoDurationTimeout={2000}
         />
       );
-      act(() => {
-        screen.getByTestId('rn-story-video').props.onPlaybackStatusUpdate({
-          isLoaded: true,
-          durationMillis: 8000,
-        });
-      });
+      ready(currentPlayer(), 8);
 
       // Well past timeout + default duration: the fallback must not have run.
       act(() => {
@@ -720,6 +1179,7 @@ describe('Stories', () => {
     it('renderSeeMore returning null renders nothing', () => {
       render(<Stories stories={SEE_MORE_STORY} renderSeeMore={() => null} />);
       expect(screen.queryByText('View Details')).toBeNull();
+      expect(screen.queryByTestId('rn-story-bottom')).toBeNull();
     });
   });
 
@@ -747,7 +1207,7 @@ describe('Stories', () => {
       expect(Image.prefetch).toHaveBeenCalledWith(IMAGE_STORIES[2]!.media);
     });
 
-    it('does not prefetch a video', () => {
+    it('leaves videos to their players', () => {
       render(
         <Stories
           stories={[
@@ -762,6 +1222,182 @@ describe('Stories', () => {
     it('can be turned off with preloadNext', () => {
       render(<Stories stories={IMAGE_STORIES} preloadNext={false} />);
       expect(Image.prefetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('custom images', () => {
+    it('forwards imageProps to the built-in image', () => {
+      render(
+        <Stories
+          stories={IMAGE_STORIES}
+          imageProps={{ blurRadius: 4, accessibilityLabel: 'Story photo' }}
+        />
+      );
+      const image = screen.getByTestId('rn-story-image');
+      expect(image.props.blurRadius).toBe(4);
+      expect(image.props.accessibilityLabel).toBe('Story photo');
+      expect(image.props.source.uri).toBe(IMAGE_STORIES[0]!.media);
+    });
+
+    it('sends the story headers with the image request', () => {
+      render(
+        <Stories
+          stories={[
+            {
+              media: 'https://example.com/private.jpg',
+              mediaType: 'image',
+              headers: { Authorization: 'Bearer token' },
+            },
+          ]}
+        />
+      );
+      expect(screen.getByTestId('rn-story-image').props.source).toEqual({
+        uri: 'https://example.com/private.jpg',
+        headers: { Authorization: 'Bearer token' },
+      });
+    });
+
+    it('renderImage replaces the built-in image and drives the loader', () => {
+      const onNext = jest.fn();
+      const renderImage = jest.fn(
+        (
+          _story: Story,
+          props: {
+            source: { uri: string };
+            onLoadStart: () => void;
+            onLoadEnd: () => void;
+          }
+        ) => <View testID="custom-image" {...props} />
+      );
+      render(
+        <Stories
+          stories={IMAGE_STORIES}
+          renderImage={renderImage}
+          onNext={onNext}
+        />
+      );
+
+      expect(screen.queryByTestId('rn-story-image')).toBeNull();
+      expect(renderImage.mock.calls[0]![0]).toBe(IMAGE_STORIES[0]);
+      const custom = screen.getByTestId('custom-image');
+      expect(custom.props.source.uri).toBe(IMAGE_STORIES[0]!.media);
+      expect(screen.queryByTestId('rn-story-loading')).toBeTruthy();
+
+      act(() => {
+        custom.props.onLoadEnd();
+      });
+      expect(screen.queryByTestId('rn-story-loading')).toBeNull();
+
+      act(() => {
+        jest.advanceTimersByTime(3500);
+      });
+      expect(onNext).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('onStoryStart', () => {
+    it('reports the first story on mount and every story after that', () => {
+      const onStoryStart = jest.fn();
+      render(<Stories stories={IMAGE_STORIES} onStoryStart={onStoryStart} />);
+      expect(onStoryStart).toHaveBeenCalledTimes(1);
+      expect(onStoryStart).toHaveBeenLastCalledWith(0, IMAGE_STORIES[0]);
+
+      act(() => {
+        tapNext();
+      });
+      expect(onStoryStart).toHaveBeenCalledTimes(2);
+      expect(onStoryStart).toHaveBeenLastCalledWith(1, IMAGE_STORIES[1]);
+
+      finishImageLoad();
+      act(() => {
+        jest.advanceTimersByTime(3500);
+      });
+      expect(onStoryStart).toHaveBeenCalledTimes(3);
+      expect(onStoryStart).toHaveBeenLastCalledWith(2, IMAGE_STORIES[2]);
+    });
+
+    it('reports a replacement set of stories, but not an appended one', () => {
+      const onStoryStart = jest.fn();
+      const { rerender } = render(
+        <Stories stories={IMAGE_STORIES} onStoryStart={onStoryStart} />
+      );
+      expect(onStoryStart).toHaveBeenCalledTimes(1);
+
+      rerender(
+        <Stories
+          stories={[
+            ...IMAGE_STORIES,
+            { media: 'https://example.com/4.jpg', mediaType: 'image' },
+          ]}
+          onStoryStart={onStoryStart}
+        />
+      );
+      expect(onStoryStart).toHaveBeenCalledTimes(1);
+
+      const replacement: Story[] = [
+        { media: 'https://example.com/z.jpg', mediaType: 'image' },
+      ];
+      rerender(<Stories stories={replacement} onStoryStart={onStoryStart} />);
+      expect(onStoryStart).toHaveBeenCalledTimes(2);
+      expect(onStoryStart).toHaveBeenLastCalledWith(0, replacement[0]);
+    });
+  });
+
+  describe('layout customization', () => {
+    it('applies explicit safe area insets around the bars and See More', () => {
+      render(
+        <Stories
+          stories={[
+            {
+              media: 'https://example.com/1.jpg',
+              mediaType: 'image',
+              seeMoreUrl: 'https://example.com',
+            },
+          ]}
+          safeAreaInsets={{ top: 44, bottom: 20 }}
+        />
+      );
+      expect(
+        StyleSheet.flatten(screen.getByTestId('rn-story-top').props.style)
+          .paddingTop
+      ).toBe(44);
+      expect(
+        StyleSheet.flatten(screen.getByTestId('rn-story-bottom').props.style)
+          .paddingBottom
+      ).toBe(20);
+    });
+
+    it('colors the progress bar track', () => {
+      render(
+        <Stories
+          stories={IMAGE_STORIES}
+          animationBarBackgroundColor="rgba(255, 0, 0, 0.5)"
+        />
+      );
+      const bar = screen.getAllByTestId('rn-story-bar')[0]!;
+      expect(StyleSheet.flatten(bar.props.style).backgroundColor).toBe(
+        'rgba(255, 0, 0, 0.5)'
+      );
+    });
+
+    it('sets a light status bar while open, unless told not to', () => {
+      const { rerender } = render(<Stories stories={IMAGE_STORIES} />);
+      expect(screen.UNSAFE_getByType(StatusBar).props.barStyle).toBe(
+        'light-content'
+      );
+
+      rerender(<Stories stories={IMAGE_STORIES} statusBarStyle={null} />);
+      expect(screen.UNSAFE_queryByType(StatusBar)).toBeNull();
+    });
+
+    it('forwards modalProps to the modal', () => {
+      render(
+        <Stories
+          stories={IMAGE_STORIES}
+          modalProps={{ animationType: 'slide' }}
+        />
+      );
+      expect(screen.UNSAFE_getByType(Modal).props.animationType).toBe('slide');
     });
   });
 });

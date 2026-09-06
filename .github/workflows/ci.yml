@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup
         uses: ./.github/actions/setup
@@ -25,11 +25,32 @@ jobs:
       - name: Typecheck files
         run: yarn typecheck
 
+      - name: Typecheck example app
+        run: yarn --cwd example typecheck
+
+  # The library only uses the part of expo-video's API that has been there
+  # since SDK 52 (expo-video 2.0). Compiling against that oldest supported
+  # release catches any accidental use of something newer.
+  typecheck-oldest-expo-video:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Install the oldest supported expo-video
+        run: yarn add --dev --ignore-engines --no-lockfile expo-video@2.0.6 expo@52.0.49
+
+      - name: Typecheck against it
+        run: yarn typecheck
+
   test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup
         uses: ./.github/actions/setup
@@ -41,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup
         uses: ./.github/actions/setup

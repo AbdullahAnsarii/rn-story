@@ -1,28 +1,42 @@
+// rn-story example — https://github.com/AbdullahAnsarii/rn-story
+//
+// An avatar rail that opens each profile's stories, with a custom header
+// (gradient, avatar, mute and close buttons), a See More link, viewed
+// indicators, and playback that moves on to the next profile by itself.
 import * as React from 'react';
-import Close from '../assets/Close';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  StyleSheet,
-  SafeAreaView,
-  Pressable,
-  View,
-  Image,
-  Text,
   Dimensions,
-  StatusBar,
+  Image,
+  Pressable,
   ScrollView,
-  Platform,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import Stories from 'rn-story';
 import type { Story } from 'rn-story';
+import Close from '../assets/Close';
+import Mute from '../assets/Mute';
+import Unmute from '../assets/Unmute';
+
 const { width } = Dimensions.get('window');
+
+export type Profile = {
+  id: number;
+  profileName: string;
+  profileImage: string;
+  stories: Story[];
+};
 
 const PROFILES: Profile[] = [
   {
-    profileImage: 'https://picsum.photos/id/64/200/200',
-    profileName: 'Abdullah Ansari',
     id: 1,
+    profileName: 'Abdullah Ansari',
+    profileImage: 'https://picsum.photos/id/64/200/200',
     stories: [
       {
         media: 'https://picsum.photos/id/1015/1080/1920',
@@ -32,18 +46,19 @@ const PROFILES: Profile[] = [
       {
         media: 'https://picsum.photos/id/1016/1080/1920',
         mediaType: 'image',
-        duration: 12000,
+        duration: 6000,
       },
       {
-        media: 'https://picsum.photos/id/1018/1080/1920',
-        mediaType: 'image',
+        media:
+          'https://raw.githubusercontent.com/AbdullahAnsarii/rn-story/master/docs/demo.mp4',
+        mediaType: 'video',
       },
     ],
   },
   {
-    profileImage: 'https://picsum.photos/id/1025/200/200',
-    profileName: 'Abdullah Ansari 2',
     id: 2,
+    profileName: 'Pug life',
+    profileImage: 'https://picsum.photos/id/1025/200/200',
     stories: [
       {
         media:
@@ -56,198 +71,235 @@ const PROFILES: Profile[] = [
       },
     ],
   },
+  {
+    id: 3,
+    profileName: 'Big Buck Bunny',
+    profileImage: 'https://picsum.photos/id/1011/200/200',
+    stories: [
+      {
+        // A longer clip, played in full: the story ends when the video does.
+        media:
+          'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_2MB.mp4',
+        mediaType: 'video',
+        seeMoreUrl: 'https://github.com/AbdullahAnsarii/rn-story',
+      },
+      {
+        media: 'https://picsum.photos/id/1011/1080/1920',
+        mediaType: 'image',
+      },
+    ],
+  },
 ];
 
 export default function App() {
   // Setting this state to null closes the story view.
   const [currentProfile, setCurrentProfile] = useState<number | null>(null);
-  const [viewed, setViewed] = useState<Record<string | number, boolean>>({});
+  const [viewed, setViewed] = useState<Record<number, boolean>>({});
+  const [muted, setMuted] = useState(false);
 
   const close = useCallback(() => setCurrentProfile(null), []);
+  const toggleMute = useCallback(() => setMuted((value) => !value), []);
 
   // Move on to the next profile, or close when there are none left.
   const showNextProfile = useCallback(() => {
-    if (currentProfile === null) {
-      return;
-    }
-    const id = PROFILES[currentProfile].id;
-    setViewed((seen) => ({ ...seen, [id]: true }));
-    setCurrentProfile(
-      currentProfile < PROFILES.length - 1 ? currentProfile + 1 : null
-    );
-  }, [currentProfile]);
+    setCurrentProfile((index) => {
+      if (index === null) {
+        return null;
+      }
+      const id = PROFILES[index]!.id;
+      setViewed((seen) => ({ ...seen, [id]: true }));
+      return index < PROFILES.length - 1 ? index + 1 : null;
+    });
+  }, []);
 
   const showPreviousProfile = useCallback(() => {
-    if (currentProfile === null) {
-      return;
-    }
-    setCurrentProfile(currentProfile === 0 ? null : currentProfile - 1);
-  }, [currentProfile]);
+    setCurrentProfile((index) =>
+      index === null || index === 0 ? null : index - 1
+    );
+  }, []);
 
   const profile = currentProfile === null ? null : PROFILES[currentProfile];
 
-  // Build the header per story at render time. Keeping JSX out of state means
-  // the header always reflects the profile that is actually showing.
+  // Build the header per story at render time, so it always reflects the
+  // profile that is actually showing.
   const stories = useMemo<Story[]>(() => {
     if (!profile) {
       return [];
     }
     const header = (
-      <View style={[styles.avatarAndIconsContainer]}>
-        {/* THE AVATAR AND USERNAME  */}
-        <View style={[styles.avatarAndIconsContainer]}>
-          <LinearGradient
-            colors={['rgba(0,0,0,0.25)', 'transparent']}
-            style={[styles.linearGradient]}
+      <View style={styles.header}>
+        <LinearGradient
+          colors={['rgba(0,0,0,0.45)', 'transparent']}
+          style={styles.headerGradient}
+        />
+        <View style={styles.headerProfile}>
+          <Image
+            style={styles.headerAvatar}
+            source={{ uri: profile.profileImage }}
           />
-          <View style={styles.avatarAndProfileContainer}>
-            <Image
-              style={[styles.profileImage]}
-              source={{ uri: profile.profileImage }}
-            />
-            <View>
-              <Text
-                numberOfLines={1}
-                style={[{ width: width / 1.75 }, styles.profileName]}
-              >
-                {profile.profileName}
-              </Text>
-            </View>
-          </View>
-          {/* END OF THE AVATAR AND USERNAME */}
+          <Text numberOfLines={1} style={styles.headerName}>
+            {profile.profileName}
+          </Text>
         </View>
-        <View style={styles.iconContainer}>
-          {/* THE CLOSE BUTTON */}
-          <Pressable style={styles.closeButton} onPress={close}>
-            <Close height={28} width={28} fill={'#fff'} stroke={'#fff'} />
+        <View style={styles.headerButtons}>
+          <Pressable
+            onPress={toggleMute}
+            hitSlop={8}
+            style={styles.headerButton}
+          >
+            {muted ? (
+              <Mute height={24} width={24} fill="#fff" stroke="#fff" />
+            ) : (
+              <Unmute height={24} width={24} fill="#fff" stroke="#fff" />
+            )}
           </Pressable>
-          {/* END OF CLOSE BUTTON */}
+          <Pressable onPress={close} hitSlop={8} style={styles.headerButton}>
+            <Close height={28} width={28} fill="#fff" stroke="#fff" />
+          </Pressable>
         </View>
       </View>
     );
 
     return profile.stories.map((story) => ({ ...story, header }));
-  }, [profile, close]);
+  }, [profile, muted, toggleMute, close]);
 
   return (
-    <SafeAreaView>
-      <StatusBar />
-      {/* you can also use FlatList here */}
-      <ScrollView horizontal>
-        {PROFILES.map((item, index) => (
-          <Pressable
-            key={'story-' + item.id}
-            onPress={() => setCurrentProfile(index)}
-            style={[styles.storyContainer]}
-          >
-            <View
-              style={[
-                styles.imageContainer,
-                viewed[item.id] ? styles.viewedStory : styles.newStory,
-              ]}
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.screen} edges={['top']}>
+        <StatusBar barStyle="dark-content" />
+        <Text style={styles.title}>rn-story</Text>
+        <Text style={styles.subtitle}>Tap an avatar to open its stories</Text>
+        {/* You can also use a FlatList here */}
+        <ScrollView horizontal contentContainerStyle={styles.rail}>
+          {PROFILES.map((item, index) => (
+            <Pressable
+              key={item.id}
+              onPress={() => setCurrentProfile(index)}
+              style={styles.railItem}
             >
-              <Image
-                style={[styles.storyImage]}
-                resizeMode={'cover'}
-                source={{ uri: item.profileImage }}
-              />
-            </View>
-            <Text numberOfLines={1} style={[styles.profileNameHorizontal]}>
-              {item.profileName}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
-      {profile && (
-        <Stories
-          stories={stories}
-          //called when user taps on next
-          onNext={() => console.log('next')}
-          //called when user taps on previous
-          onPrevious={() => console.log('previous')}
-          // no more stories for this profile, so move on to the next one
-          onAllStoriesEnd={showNextProfile}
-          // no more stories to go back to, so go back a profile
-          onPreviousFirstStory={showPreviousProfile}
-          // android hardware back button
-          onClose={close}
-          //custom loading component
-          loadingComponent={
-            <Text style={styles.loading}>Custom Loading...</Text>
-          }
-        />
-      )}
-    </SafeAreaView>
+              <View
+                style={[
+                  styles.ring,
+                  viewed[item.id] ? styles.ringViewed : styles.ringNew,
+                ]}
+              >
+                <Image
+                  style={styles.avatar}
+                  resizeMode="cover"
+                  source={{ uri: item.profileImage }}
+                />
+              </View>
+              <Text numberOfLines={1} style={styles.railName}>
+                {item.profileName}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+        {profile && (
+          <Stories
+            stories={stories}
+            isMuted={muted}
+            // No more stories for this profile, so move on to the next one
+            onAllStoriesEnd={showNextProfile}
+            // No more stories to go back to, so go back a profile
+            onPreviousFirstStory={showPreviousProfile}
+            // Android hardware back button
+            onClose={close}
+            // Fired for every story shown: ideal for "viewed" tracking
+            onStoryStart={(index, story) =>
+              console.log(`story ${index} started`, story.media)
+            }
+          />
+        )}
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  storyContainer: {
-    alignItems: 'center',
+  screen: {
+    flex: 1,
+    backgroundColor: '#fff',
   },
-  imageContainer: {
+  title: {
+    fontSize: 28,
+    fontWeight: '800',
+    marginTop: 24,
+    marginHorizontal: 16,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  rail: {
+    paddingHorizontal: 12,
+  },
+  railItem: {
+    alignItems: 'center',
+    marginHorizontal: 6,
+    width: 76,
+  },
+  ring: {
     borderWidth: 2,
-    borderRadius: 50,
+    borderRadius: 40,
     padding: 3,
   },
-  newStory: {
+  ringNew: {
     borderColor: '#25D366',
   },
-  viewedStory: {
+  ringViewed: {
     borderColor: '#D3D3D3',
   },
-  storyImage: {
-    height: 64,
+  avatar: {
     width: 64,
-    borderRadius: 50,
+    height: 64,
+    borderRadius: 32,
   },
-  profileNameHorizontal: {
-    width: Dimensions?.get('window')?.width / 5,
+  railName: {
+    fontSize: 12,
+    marginTop: 4,
+    width: 76,
     textAlign: 'center',
   },
-  avatarAndIconsContainer: {
-    height: 50,
+  header: {
+    height: 56,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
   },
-  linearGradient: {
+  headerGradient: {
     position: 'absolute',
     left: 0,
     right: 0,
-    top: Platform.OS === 'ios' ? -64 : 0,
-    height: 60,
+    top: -64,
+    height: 120,
   },
-  avatarAndProfileContainer: {
+  headerProfile: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 12,
   },
-  profileImage: {
+  headerAvatar: {
     height: 36,
     width: 36,
-    borderRadius: 25,
+    borderRadius: 18,
   },
-  profileName: {
+  headerName: {
     color: '#fff',
-    marginLeft: 12,
+    fontWeight: '600',
+    marginLeft: 10,
+    maxWidth: width / 1.75,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowRadius: 4,
   },
-  iconContainer: {
+  headerButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginRight: 12,
+    alignItems: 'center',
   },
-  closeButton: {
-    marginLeft: 12,
-  },
-  loading: {
-    color: '#fff',
+  headerButton: {
+    marginLeft: 16,
   },
 });
-
-export type Profile = {
-  profileName: string;
-  profileImage: string;
-  id: string | number;
-  stories: Story[];
-};
