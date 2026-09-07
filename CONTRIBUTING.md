@@ -115,3 +115,16 @@ When you're sending a pull request:
 - Review the documentation to make sure it looks good.
 - Follow the pull request template when opening a pull request.
 - For pull requests that change the API or implementation, discuss with maintainers first by opening an issue.
+
+## Releasing
+
+Releases are published to npm by GitHub Actions with [provenance](https://docs.npmjs.com/generating-provenance-statements), so the package page shows exactly which commit and workflow built each version. To cut one:
+
+```sh
+npm version 3.1.0 --no-git-tag-version   # bump package.json
+git commit -am "chore: release 3.1.0"
+git tag v3.1.0
+git push origin master v3.1.0
+```
+
+Pushing the tag runs [`release.yml`](.github/workflows/release.yml): it checks that the tag matches `package.json`, typechecks, tests, builds and publishes. Then write the release notes on GitHub for the new tag.

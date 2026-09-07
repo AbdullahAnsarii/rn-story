@@ -1,0 +1,60 @@
+name: Release
+# Publishes to npm with provenance when a version tag is pushed
+# (`git tag v3.1.0 && git push origin v3.1.0`). The package.json version must
+# match the tag. Authentication uses npm trusted publishing (OIDC), configured
+# once on npmjs.com under the package's Settings → Trusted Publisher: GitHub
+# Actions, repository AbdullahAnsarii/rn-story, workflow release.yml — no
+# long-lived token is stored anywhere. Run it manually to dry-run the pipeline.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # Needed for npm trusted publishing and for the provenance attestation.
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      # Trusted publishing needs npm 11.5.1 or newer.
+      - name: Update npm
+        run: npm install -g npm@latest && npm --version
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Check that the tag matches package.json
+        if: github.event_name == 'push'
+        run: |
+          expected="v$(node -p "require('./package.json').version")"
+          if [ "$expected" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $expected"
+            exit 1
+          fi
+
+      - name: Typecheck
+        run: yarn typecheck
+
+      - name: Test
+        run: yarn test --maxWorkers=2
+
+      # `prepack` builds lib/ right before the tarball is created.
+      - name: Publish to npm with provenance
+        if: github.event_name == 'push'
+        run: npm publish --provenance --access public
+
+      - name: Dry run
+        if: github.event_name == 'workflow_dispatch'
+        run: npm publish --provenance --access public --dry-run

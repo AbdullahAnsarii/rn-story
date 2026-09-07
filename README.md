@@ -9,6 +9,8 @@
   <a href="https://www.npmjs.com/package/rn-story"><img src="https://img.shields.io/npm/dm/rn-story" alt="npm downloads" /></a>
   <a href="https://github.com/AbdullahAnsarii/rn-story/actions/workflows/ci.yml"><img src="https://github.com/AbdullahAnsarii/rn-story/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI status" /></a>
   <a href="https://www.npmjs.com/package/rn-story"><img src="https://img.shields.io/npm/types/rn-story" alt="TypeScript types" /></a>
+  <a href="https://bundlephobia.com/package/rn-story"><img src="https://img.shields.io/bundlephobia/minzip/rn-story?label=minzipped" alt="bundle size" /></a>
+  <a href="https://socket.dev/npm/package/rn-story"><img src="https://socket.dev/api/badge/npm/package/rn-story" alt="Socket score" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/npm/l/rn-story" alt="license" /></a>
 </p>
 
@@ -25,6 +27,8 @@
 ```sh
 git clone https://github.com/AbdullahAnsarii/rn-story && cd rn-story/example && yarn && npx expo start
 ```
+
+📝 Prefer a walkthrough? Read [Add Instagram-style stories to your React Native app in minutes](https://abdullahansarii.medium.com/add-instagram-style-stories-to-your-react-native-app-in-minutes-aaee539bf940).
 
 ## Features
 
